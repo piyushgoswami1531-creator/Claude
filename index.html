@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Piyush Bharti — Portfolio</title>
+<meta name="description" content="Piyush Bharti — B.Tech CSE student building with Python, DSA, web development and AI tools. Open to software, AI and data internships.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07080d; --bg2:#0d0f18; --card:rgba(255,255,255,.04); --line:rgba(255,255,255,.09);
+  --text:#e9ecf5; --muted:#9aa3b8; --accent:#7c5cff; --accent2:#22d3ee; --glow:rgba(124,92,255,.35);
+  --sans:"Space Grotesk",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--accent);color:#fff}
+
+#scene{position:fixed;inset:0;z-index:0;pointer-events:none}
+.grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E")}
+main,nav,footer{position:relative;z-index:2}
+
+/* nav */
+nav{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;
+  padding:18px clamp(16px,5vw,64px);backdrop-filter:blur(12px);background:rgba(7,8,13,.55);border-bottom:1px solid var(--line);z-index:10}
+.logo{font-family:var(--mono);font-weight:500}
+.logo span{color:var(--accent2)}
+nav ul{display:flex;gap:28px;list-style:none;font-size:.92rem;color:var(--muted)}
+nav ul a:hover{color:var(--text)}
+#progress{position:fixed;top:0;left:0;height:2px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));z-index:11}
+
+section{min-height:100vh;padding:120px clamp(16px,6vw,96px) 80px;display:flex;flex-direction:column;justify-content:center;max-width:1240px;margin:0 auto}
+.tag{font-family:var(--mono);font-size:.8rem;color:var(--accent2);letter-spacing:.15em;text-transform:uppercase;margin-bottom:18px}
+h2{font-size:clamp(2rem,5vw,3.4rem);line-height:1.08;letter-spacing:-.03em;margin-bottom:28px}
+h2 em{font-style:normal;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* hero */
+#home{align-items:flex-start}
+.hello{font-family:var(--mono);color:var(--muted);margin-bottom:12px}
+.hello::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#34d399;margin-right:10px;box-shadow:0 0 12px #34d399;animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.35}}
+h1{font-size:clamp(3rem,10vw,7.5rem);line-height:.95;letter-spacing:-.05em;font-weight:700}
+h1 .line{display:block;overflow:hidden}
+h1 .line span{display:inline-block;transform:translateY(105%);animation:rise 1s cubic-bezier(.2,.8,.2,1) forwards}
+h1 .line:nth-child(2) span{animation-delay:.12s;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+@keyframes rise{to{transform:none}}
+.role{margin-top:26px;font-size:clamp(1.05rem,2.2vw,1.35rem);color:var(--muted);max-width:620px}
+.role b{color:var(--text);font-weight:500}
+#typed{font-family:var(--mono);color:var(--accent2)}
+#typed::after{content:"▍";animation:pulse 1s infinite}
+.cta{display:flex;gap:14px;margin-top:38px;flex-wrap:wrap}
+.btn{padding:14px 26px;border-radius:999px;font-weight:500;border:1px solid var(--line);transition:.3s;display:inline-flex;gap:8px;align-items:center}
+.btn.primary{background:linear-gradient(90deg,var(--accent),#5b8cff);border:0;box-shadow:0 10px 40px var(--glow)}
+.btn:hover{transform:translateY(-3px)}
+.btn:not(.primary):hover{border-color:var(--accent2);color:var(--accent2)}
+.scroll-hint{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:.72rem;color:var(--muted);letter-spacing:.2em}
+
+/* reveal */
+.reveal{opacity:0;transform:translateY(40px);transition:opacity .9s,transform .9s cubic-bezier(.2,.8,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* about */
+.about-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:48px;align-items:start}
+.about-grid p{color:var(--muted);font-size:1.08rem;margin-bottom:16px}
+.about-grid p b{color:var(--text);font-weight:500}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.stat{padding:22px;border:1px solid var(--line);border-radius:18px;background:rgba(15,17,28,.75);backdrop-filter:blur(10px)}
+.stat strong{display:block;font-size:2rem;letter-spacing:-.03em}
+.stat span{color:var(--muted);font-size:.86rem}
+
+/* tilt cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;perspective:1000px}
+.card{position:relative;padding:28px;border-radius:22px;border:1px solid var(--line);
+  background:linear-gradient(160deg,rgba(22,24,38,.82),rgba(12,13,22,.78));backdrop-filter:blur(10px);
+  transform-style:preserve-3d;transition:transform .15s ease-out,border-color .3s;will-change:transform}
+.card::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(400px circle at var(--mx,50%) var(--my,50%),rgba(124,92,255,.18),transparent 45%);opacity:0;transition:opacity .3s}
+.card:hover{border-color:rgba(124,92,255,.5)}
+.card:hover::before{opacity:1}
+.card .icon{font-size:1.8rem;margin-bottom:16px;transform:translateZ(40px)}
+.card h3{font-size:1.25rem;margin-bottom:8px;transform:translateZ(30px)}
+.card p{color:var(--muted);font-size:.95rem;transform:translateZ(20px)}
+.bar{height:6px;border-radius:9px;background:rgba(255,255,255,.07);margin-top:18px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width 1.4s cubic-bezier(.2,.8,.2,1)}
+.reveal.in .bar i{width:var(--w)}
+.lvl{font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-top:8px;display:block}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;transform:translateZ(25px)}
+.chips span{font-family:var(--mono);font-size:.72rem;padding:5px 11px;border-radius:999px;border:1px solid var(--line);color:var(--accent2)}
+
+/* projects */
+.project{min-height:300px;display:flex;flex-direction:column}
+.project .status{font-family:var(--mono);font-size:.72rem;color:#34d399;margin-bottom:14px}
+.project .status.wip{color:#fbbf24}
+.project .links{margin-top:auto;padding-top:22px;display:flex;gap:18px;font-family:var(--mono);font-size:.85rem;transform:translateZ(30px)}
+.project .links a{color:var(--accent2)}
+.project .links a:hover{text-decoration:underline}
+
+/* timeline */
+.timeline{position:relative;padding-left:32px;border-left:1px solid var(--line)}
+.step{position:relative;margin-bottom:40px}
+.step::before{content:"";position:absolute;left:-39px;top:6px;width:13px;height:13px;border-radius:50%;background:var(--bg);border:2px solid var(--accent)}
+.step.now::before{background:var(--accent);box-shadow:0 0 18px var(--accent)}
+.step time{font-family:var(--mono);font-size:.8rem;color:var(--accent2)}
+.step h3{font-size:1.2rem;margin:4px 0}
+.step p{color:var(--muted)}
+
+/* contact */
+#contact{text-align:center;align-items:center}
+#contact p{color:var(--muted);max-width:560px;margin:0 auto 34px;font-size:1.1rem}
+.socials{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+footer{text-align:center;padding:30px 16px;color:var(--muted);font-family:var(--mono);font-size:.78rem;border-top:1px solid var(--line)}
+
+@media (max-width:760px){
+  nav ul{display:none}
+  .about-grid{grid-template-columns:1fr}
+  section{min-height:auto;padding-top:110px}
+  #home{min-height:100svh}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  h1 .line span{transform:none}
+  .reveal{opacity:1;transform:none}
+  .bar i{width:var(--w)}
+}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="grain"></div>
+
+<nav>
+  <a href="#home" class="logo">piyush<span>.dev</span></a>
+  <ul>
+    <li><a href="#about">About</a></li>
+    <li><a href="#skills">Skills</a></li>
+    <li><a href="#projects">Projects</a></li>
+    <li><a href="#journey">Journey</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+</nav>
+
+<main>
+  <section id="home">
+    <p class="hello">Open to internships · 2026</p>
+    <h1><span class="line"><span>Piyush</span></span><span class="line"><span>Bharti.</span></span></h1>
+    <p class="role">B.Tech CSE student who builds with <b>Python</b>, <b>DSA</b> and <b>AI tools</b>.<br>Currently: <span id="typed"></span></p>
+    <div class="cta">
+      <a href="#projects" class="btn primary">View my work →</a>
+      <a href="#contact" class="btn">Get in touch</a>
+    </div>
+    <span class="scroll-hint">SCROLL ↓</span>
+  </section>
+
+  <section id="about">
+    <p class="tag reveal">01 — About</p>
+    <h2 class="reveal">Learning fast,<br><em>shipping faster.</em></h2>
+    <div class="about-grid">
+      <div class="reveal">
+        <p>I'm a first-year <b>Computer Science Engineering</b> student at <b>Saraswati Group of Colleges, Mohali</b> (2026–2030).</p>
+        <p>I like turning ideas into working software. My first big project was a <b>study platform built in Python</b>, and these days I spend my time on data structures and algorithms, building for the web, and using AI tools like <b>Claude Code</b> (skills, connectors, plugins) to get more done.</p>
+        <p>I'm looking for a <b>software, AI or data internship</b> where I can learn from real engineers and work on things people actually use.</p>
+      </div>
+      <div class="stats reveal">
+        <div class="stat"><strong data-count="2030">0</strong><span>Graduating class</span></div>
+        <div class="stat"><strong>Python</strong><span>Main language</span></div>
+        <div class="stat"><strong>DSA</strong><span>Practising every day</span></div>
+        <div class="stat"><strong>AI</strong><span>Builds with Claude Code</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="skills">
+    <p class="tag reveal">02 — Skills</p>
+    <h2 class="reveal">What I <em>work with.</em></h2>
+    <div class="grid">
+      <div class="card tilt reveal"><div class="icon">🐍</div><h3>Python</h3><p>Scripting, OOP, file handling and building full apps such as my study platform.</p><div class="bar"><i style="--w:85%"></i></div><span class="lvl">PROFICIENT</span></div>
+      <div class="card tilt reveal"><div class="icon">🧠</div><h3>DSA</h3><p>Arrays, strings, linked lists, stacks, queues, recursion, sorting and searching.</p><div class="bar"><i style="--w:75%"></i></div><span class="lvl">PROFICIENT</span></div>
+      <div class="card tilt reveal"><div class="icon">🌐</div><h3>Web Development</h3><p>HTML, CSS and JavaScript. I build responsive, interactive pages like this one.</p><div class="bar"><i style="--w:65%"></i></div><span class="lvl">INTERMEDIATE</span></div>
+      <div class="card tilt reveal"><div class="icon">🤖</div><h3>AI Tools</h3><p>Claude and Claude Code, including skills, connectors, plugins and agent workflows.</p><div class="bar"><i style="--w:80%"></i></div><span class="lvl">ADVANCED USER</span></div>
+      <div class="card tilt reveal"><div class="icon">📊</div><h3>Data Analysis</h3><p>Learning the basics of cleaning, exploring and visualising data with Python.</p><div class="bar"><i style="--w:35%"></i></div><span class="lvl">LEARNING</span></div>
+      <div class="card tilt reveal"><div class="icon">🛠️</div><h3>Tools</h3><p>The tools I use day to day.</p><div class="chips"><span>Git</span><span>GitHub</span><span>VS Code</span><span>Claude Code</span><span>Three.js</span></div></div>
+    </div>
+  </section>
+
+  <section id="projects">
+    <p class="tag reveal">03 — Projects</p>
+    <h2 class="reveal">Things I've <em>built.</em></h2>
+    <div class="grid">
+      <article class="card tilt project reveal">
+        <p class="status">● SHIPPED</p>
+        <div class="icon">📚</div>
+        <h3>Study Platform</h3>
+        <p>A Python app that helps students organise what they study and keep track of their progress.</p>
+        <div class="chips"><span>Python</span></div>
+        <div class="links"><a href="https://github.com/piyushgoswami1531-creator" target="_blank" rel="noopener">Code ↗</a></div>
+      </article>
+      <article class="card tilt project reveal">
+        <p class="status">● LIVE</p>
+        <div class="icon">🪐</div>
+        <h3>3D Portfolio</h3>
+        <p>This site: a real-time WebGL scene that reacts to the mouse and to scrolling, 3D tilt cards and a design that works on phones.</p>
+        <div class="chips"><span>Three.js</span><span>JavaScript</span><span>CSS</span></div>
+        <div class="links"><a href="https://github.com/piyushgoswami1531-creator/Claude" target="_blank" rel="noopener">Code ↗</a></div>
+      </article>
+      <article class="card tilt project reveal">
+        <p class="status wip">● IN PROGRESS</p>
+        <div class="icon">⚡</div>
+        <h3>Next build: AI + Data</h3>
+        <p>Coming next: a project that combines Python, data analysis and an AI API. Follow my GitHub to see it as it comes together.</p>
+        <div class="chips"><span>Python</span><span>Pandas</span><span>AI API</span></div>
+        <div class="links"><a href="https://github.com/piyushgoswami1531-creator" target="_blank" rel="noopener">Follow ↗</a></div>
+      </article>
+    </div>
+  </section>
+
+  <section id="journey">
+    <p class="tag reveal">04 — Journey</p>
+    <h2 class="reveal">Where I'm <em>headed.</em></h2>
+    <div class="timeline">
+      <div class="step now reveal"><time>2026 — NOW</time><h3>B.Tech CSE, Semester 1</h3><p>Saraswati Group of Colleges, Mohali. Building a base in programming, DSA and maths.</p></div>
+      <div class="step reveal"><time>2026</time><h3>Built my study platform</h3><p>My first real project: I went from an idea to a working Python application.</p></div>
+      <div class="step reveal"><time>NEXT</time><h3>First internship</h3><p>Looking for a software, AI or data role where I can contribute and learn quickly.</p></div>
+      <div class="step reveal"><time>2030</time><h3>Graduation</h3><p>The goal is to become a strong engineer who builds AI-powered products.</p></div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <p class="tag reveal">05 — Contact</p>
+    <h2 class="reveal">Let's build <em>something.</em></h2>
+    <p class="reveal">I'm open to internships, collaborations and conversations about tech. My inbox is always open.</p>
+    <div class="socials reveal">
+      <!-- TODO: replace the email and LinkedIn URL with your own -->
+      <a class="btn primary" href="mailto:your.email@example.com">✉ Email me</a>
+      <a class="btn" href="https://github.com/piyushgoswami1531-creator" target="_blank" rel="noopener">GitHub ↗</a>
+      <a class="btn" href="https://www.linkedin.com/in/your-profile" target="_blank" rel="noopener">LinkedIn ↗</a>
+    </div>
+  </section>
+</main>
+
+<footer>Designed & built by Piyush Bharti · © 2026</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* typing effect */
+(() => {
+  const words = ['learning DSA', 'building with Python', 'shipping with Claude Code', 'exploring data analysis', 'looking for an internship'];
+  const el = document.getElementById('typed');
+  if (reduce) { el.textContent = words[0]; return; }
+  let w = 0, i = 0, del = false;
+  (function tick() {
+    const word = words[w];
+    el.textContent = word.slice(0, i);
+    if (!del && i === word.length) { del = true; return setTimeout(tick, 1600); }
+    if (del && i === 0) { del = false; w = (w + 1) % words.length; }
+    i += del ? -1 : 1;
+    setTimeout(tick, del ? 35 : 75);
+  })();
+})();
+
+/* reveal on scroll + counter */
+const io = new IntersectionObserver(entries => entries.forEach(e => {
+  if (!e.isIntersecting) return;
+  e.target.classList.add('in');
+  e.target.querySelectorAll('[data-count]').forEach(n => {
+    const end = +n.dataset.count, t0 = performance.now();
+    (function step(t) {
+      const p = Math.min((t - t0) / 1400, 1);
+      n.textContent = Math.round(end * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(step);
+    })(t0);
+  });
+  io.unobserve(e.target);
+}), { threshold: .15 });
+document.querySelectorAll('.reveal').forEach((el, k) => { el.style.transitionDelay = (k % 3) * 0.08 + 's'; io.observe(el); });
+
+/* 3D tilt cards */
+if (!reduce && matchMedia('(hover:hover)').matches) {
+  document.querySelectorAll('.tilt').forEach(card => {
+    card.addEventListener('mousemove', e => {
+      const r = card.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+      card.style.transform = `rotateY(${(x - .5) * 16}deg) rotateX(${(.5 - y) * 16}deg) translateZ(10px)`;
+      card.style.setProperty('--mx', x * 100 + '%'); card.style.setProperty('--my', y * 100 + '%');
+    });
+    card.addEventListener('mouseleave', () => card.style.transform = '');
+  });
+}
+
+/* scroll progress */
+const bar = document.getElementById('progress');
+let scrollP = 0;
+const canvas3d = document.getElementById('scene');
+addEventListener('scroll', () => {
+  scrollP = scrollY / (document.documentElement.scrollHeight - innerHeight || 1);
+  bar.style.width = scrollP * 100 + '%';
+  canvas3d.style.opacity = Math.max(.4, 1 - scrollY / innerHeight * .6);
+}, { passive: true });
+
+/* Three.js scene */
+(() => {
+  if (!window.THREE) return;
+  const canvas = document.getElementById('scene');
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true }); } catch { return; }
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x07080d, 0.045);
+  const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+  cam.position.z = 9;
+
+  // core: glowing wireframe icosahedron + inner solid
+  const core = new THREE.Group();
+  const geo = new THREE.IcosahedronGeometry(2.2, 1);
+  core.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x7c5cff, wireframe: true, transparent: true, opacity: .55 })));
+  const inner = new THREE.Mesh(new THREE.IcosahedronGeometry(1.4, 0), new THREE.MeshStandardMaterial({ color: 0x1a1340, metalness: .7, roughness: .25, flatShading: true }));
+  core.add(inner);
+  const ptsMat = new THREE.PointsMaterial({ color: 0x22d3ee, size: .08 });
+  core.add(new THREE.Points(geo, ptsMat));
+  scene.add(core);
+
+  // orbiting rings
+  const rings = [];
+  [[3.2, 0x22d3ee], [3.9, 0x7c5cff], [4.6, 0x5b8cff]].forEach(([r, c], k) => {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r, .012, 8, 160), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: .45 }));
+    ring.rotation.x = Math.PI / 2 + k * .35; ring.rotation.y = k * .5;
+    scene.add(ring); rings.push(ring);
+  });
+
+  // floating shapes
+  const shapes = [];
+  const shapeGeos = [new THREE.OctahedronGeometry(.35), new THREE.TetrahedronGeometry(.4), new THREE.BoxGeometry(.45, .45, .45), new THREE.TorusKnotGeometry(.22, .07, 64, 8)];
+  for (let k = 0; k < 18; k++) {
+    const m = new THREE.Mesh(shapeGeos[k % 4], new THREE.MeshStandardMaterial({ color: k % 2 ? 0x7c5cff : 0x22d3ee, metalness: .6, roughness: .3, flatShading: true }));
+    m.position.set((Math.random() - .5) * 22, (Math.random() - .5) * 14, (Math.random() - .5) * 10 - 3);
+    m.userData = { s: Math.random() * .01 + .004, o: Math.random() * 6 };
+    scene.add(m); shapes.push(m);
+  }
+
+  // starfield
+  const N = 1800, pos = new Float32Array(N * 3);
+  for (let k = 0; k < N * 3; k++) pos[k] = (Math.random() - .5) * 60;
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xaab4ff, size: .05, transparent: true, opacity: .7 }));
+  scene.add(stars);
+
+  scene.add(new THREE.AmbientLight(0xffffff, .35));
+  const l1 = new THREE.PointLight(0x7c5cff, 2.2, 30); l1.position.set(5, 4, 6); scene.add(l1);
+  const l2 = new THREE.PointLight(0x22d3ee, 1.8, 30); l2.position.set(-6, -3, 4); scene.add(l2);
+
+  const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
+  addEventListener('pointermove', e => { mouse.tx = e.clientX / innerWidth - .5; mouse.ty = e.clientY / innerHeight - .5; });
+
+  function resize() {
+    renderer.setSize(innerWidth, innerHeight, false);
+    cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix();
+    core.position.x = innerWidth > 760 ? 3.2 : 0;   // keep core beside hero text on desktop
+    core.scale.setScalar(innerWidth > 760 ? 1 : .6);
+    core.position.y = innerWidth > 760 ? 0 : 3.2;   // on phones float the core above the text
+  }
+  addEventListener('resize', resize); resize();
+
+  const clock = new THREE.Clock();
+  (function loop() {
+    const t = clock.getElapsedTime(), sp = reduce ? 0 : 1;
+    mouse.x += (mouse.tx - mouse.x) * .05; mouse.y += (mouse.ty - mouse.y) * .05;
+
+    core.rotation.y = t * .15 * sp + scrollP * Math.PI * 2;
+    core.rotation.x = t * .08 * sp + mouse.y * .6;
+    inner.rotation.y = -t * .4 * sp;
+    const pulse = 1 + Math.sin(t * 2) * .03 * sp;
+    inner.scale.setScalar(pulse);
+    rings.forEach((r, k) => { r.rotation.z = t * (.1 + k * .05) * sp; r.position.x = core.position.x; r.position.y = core.position.y; });
+    shapes.forEach(m => { m.rotation.x += m.userData.s * sp; m.rotation.y += m.userData.s * sp; m.position.y += Math.sin(t + m.userData.o) * .003 * sp; });
+    stars.rotation.y = t * .01 * sp;
+
+    // scroll camera flight: dolly in & swing as you scroll
+    cam.position.x = mouse.x * 1.5 + Math.sin(scrollP * Math.PI) * 2;
+    cam.position.y = -mouse.y * 1.2 - scrollP * 3;
+    cam.position.z = 9 - scrollP * 4;
+    cam.lookAt(core.position.x * .5, -scrollP * 2, 0);
+
+    renderer.render(scene, cam);
+    requestAnimationFrame(loop);
+  })();
+})();
+</script>
+</body>
+</html>
