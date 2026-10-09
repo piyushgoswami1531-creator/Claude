@@ -1,0 +1,16 @@
+{
+  "name": "studyflow",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Turns a syllabus into an adaptive study plan, quizzes you, and tracks performance.",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "node scripts/dev.mjs",
+    "test": "node scripts/run.mjs test",
+    "build": "npm --prefix frontend run build",
+    "start": "node scripts/run.mjs start"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

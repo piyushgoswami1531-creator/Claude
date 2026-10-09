@@ -1,0 +1,8 @@
+anthropic>=1.12,<2
+fastapi>=0.140,<1
+uvicorn[standard]>=0.30
+sqlalchemy>=2.0,<3
+pydantic>=2.9,<3
+pydantic-settings>=2.5,<3
+pypdf>=5,<7
+python-multipart>=0.0.9
