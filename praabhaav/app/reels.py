@@ -16,6 +16,7 @@ Run every 30 minutes, e.g. with cron:
 import logging
 import os
 import re
+import threading
 from dataclasses import dataclass, field
 
 import httpx
@@ -29,6 +30,8 @@ APIFY_URL = (
     "https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items"
 )
 SHORTCODE_RE = re.compile(r"instagram\.com/(?:reel|reels|p)/([A-Za-z0-9_-]+)")
+# One check at a time: the scheduler and the admin button can both trigger a run.
+_run_lock = threading.Lock()
 BATCH_SIZE = 20  # keeps one Apify run well under its 5-minute sync limit
 
 
@@ -125,6 +128,16 @@ def check_reel(submission, item: dict | None) -> CheckResult:
 
 def verify_pending(db: Database, fetcher, notifier: Notifier | None = None) -> dict:
     """Check every pending reel. Returns counts; sends one Telegram summary if anything failed."""
+    if not _run_lock.acquire(blocking=False):
+        log.info("Reel check already running; skipping")
+        return {"passed": 0, "failed": 0, "error": 0}
+    try:
+        return _verify_pending(db, fetcher, notifier)
+    finally:
+        _run_lock.release()
+
+
+def _verify_pending(db: Database, fetcher, notifier: Notifier | None) -> dict:
     pending = db.pending_verification(BATCH_SIZE)
     counts = {"passed": 0, "failed": 0, "error": 0}
     if not pending:

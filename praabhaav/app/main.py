@@ -5,10 +5,13 @@ Run locally:
     ADMIN_PASSWORD=change-me uvicorn app.main:create_app --factory --reload
 """
 
+import asyncio
 import csv
 import io
 import os
 import secrets
+import tempfile
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -22,9 +25,10 @@ from . import validation
 from .agent import QueryAgent
 from .db import IST, STATUSES, inr, TICKET_STATUSES, Database, DuplicateSubmission, is_overdue
 from .digest import build_digest
-from .notify import Notifier, ticket_alert
+from .notify import Notifier, configured_base_url, ticket_alert
 from .planner import current_plan, expected_dates, group_by_day, today_ist
 from .reels import ApifyReelFetcher, verify_pending
+from .scheduler import Scheduler
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -55,7 +59,19 @@ def create_app(
     agent = agent or QueryAgent.from_env()
     notifier = notifier or Notifier.from_env()
     fetcher = fetcher or ApifyReelFetcher.from_env()
-    app = FastAPI(title="Praabhaav Creator Payments")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        task = None
+        if os.environ.get("ENABLE_SCHEDULER") == "1":
+            task = asyncio.create_task(
+                Scheduler(db, fetcher, notifier, configured_base_url()).run_forever()
+            )
+        yield
+        if task:
+            task.cancel()
+
+    app = FastAPI(title="Praabhaav Creator Payments", lifespan=lifespan)
     app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
     templates = Jinja2Templates(directory=BASE_DIR / "templates")
@@ -67,7 +83,7 @@ def create_app(
     security = HTTPBasic()
 
     def public_url(request: Request) -> str:
-        return os.environ.get("PUBLIC_BASE_URL") or str(request.base_url).rstrip("/")
+        return configured_base_url() or str(request.base_url).rstrip("/")
 
     def require_admin(credentials: HTTPBasicCredentials = Depends(security)) -> str:
         password = os.environ.get("ADMIN_PASSWORD")
@@ -85,6 +101,11 @@ def create_app(
         return credentials.username
 
     # --- creator pages -----------------------------------------------------
+
+    @app.get("/healthz")
+    def healthz():
+        db.get_setting("daily_limit")  # fails loudly if the database is unreachable
+        return {"ok": True}
 
     @app.get("/")
     def home():
@@ -442,6 +463,20 @@ def create_app(
         return Response(
             ("Sent to Telegram.\n\n" if sent else "Telegram not configured. Digest:\n\n") + text,
             media_type="text/plain; charset=utf-8",
+        )
+
+    @app.get("/admin/backup")
+    def backup(_: str = Depends(require_admin)):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "backup.db")
+            db.backup_to(path)
+            with open(path, "rb") as f:
+                data = f.read()
+        name = f"praabhaav-backup-{today_ist()}.db"
+        return Response(
+            data,
+            media_type="application/vnd.sqlite3",
+            headers={"Content-Disposition": f'attachment; filename="{name}"'},
         )
 
     @app.get("/admin/export.csv")

@@ -1,0 +1,33 @@
+# Render Blueprint for the Praabhaav app in praabhaav/.
+# Deploy guide: praabhaav/DEPLOY.md
+services:
+  - type: web
+    name: praabhaav
+    runtime: docker
+    dockerfilePath: ./praabhaav/Dockerfile
+    dockerContext: ./praabhaav
+    plan: starter            # disks need a paid instance; free instances lose data on restart
+    region: singapore        # closest Render region to India
+    healthCheckPath: /healthz
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: PRAABHAAV_DB
+        value: /data/praabhaav.db
+      - key: ENABLE_SCHEDULER
+        value: "1"
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      # Asked for when the Blueprint is created; leave any blank to switch that feature off.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: APIFY_TOKEN
+        sync: false

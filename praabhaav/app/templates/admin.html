@@ -70,6 +70,7 @@
         {% for s in statuses %}<option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>{% endfor %}
       </select>
       {% if campaign_filter %}<a href="/admin">Clear campaign filter</a>{% endif %}
+      <a class="button small secondary" href="/admin/backup">Download backup</a>
       <a class="button small secondary" href="/admin/export.csv?{% if status_filter %}status_filter={{ status_filter }}&{% endif %}{% if campaign_filter %}campaign={{ campaign_filter }}{% endif %}">Export CSV</a>
     </form>
   </div>

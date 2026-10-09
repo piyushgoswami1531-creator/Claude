@@ -315,18 +315,35 @@ class Database:
 
     # --- payouts -----------------------------------------------------------
 
-    def get_daily_limit(self) -> int:
+    def get_setting(self, key: str) -> str | None:
         with self.connect() as conn:
-            row = conn.execute("SELECT value FROM settings WHERE key = 'daily_limit'").fetchone()
-        return int(row["value"]) if row else DEFAULT_DAILY_LIMIT
+            row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        return row["value"] if row else None
 
-    def set_daily_limit(self, amount: int) -> None:
+    def set_setting(self, key: str, value: str) -> None:
         with self.connect() as conn:
             conn.execute(
-                "INSERT INTO settings (key, value) VALUES ('daily_limit', ?)"
+                "INSERT INTO settings (key, value) VALUES (?, ?)"
                 " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                (str(amount),),
+                (key, value),
             )
+
+    def get_daily_limit(self) -> int:
+        value = self.get_setting("daily_limit")
+        return int(value) if value else DEFAULT_DAILY_LIMIT
+
+    def set_daily_limit(self, amount: int) -> None:
+        self.set_setting("daily_limit", str(amount))
+
+    def backup_to(self, path: str) -> None:
+        """Consistent copy of the live database (safe while the app is running)."""
+        src = sqlite3.connect(self.path)
+        dst = sqlite3.connect(path)
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+            src.close()
 
     def payout_queue(self) -> list[sqlite3.Row]:
         """Approved/scheduled payments, oldest submission first."""

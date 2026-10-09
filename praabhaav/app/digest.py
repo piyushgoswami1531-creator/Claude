@@ -9,7 +9,7 @@ from datetime import datetime
 
 from .db import IST, Database, inr, now_utc
 from .planner import current_plan, today_ist
-from .notify import Notifier
+from .notify import Notifier, configured_base_url
 
 
 def build_digest(db: Database, base_url: str) -> str:
@@ -40,7 +40,7 @@ def build_digest(db: Database, base_url: str) -> str:
 
 def main() -> None:
     db = Database(os.environ.get("PRAABHAAV_DB", "praabhaav.db"))
-    base_url = os.environ.get("PUBLIC_BASE_URL", "http://localhost:8000")
+    base_url = configured_base_url() or "http://localhost:8000"
     text = build_digest(db, base_url)
     if not Notifier.from_env().send(text):
         print(text)

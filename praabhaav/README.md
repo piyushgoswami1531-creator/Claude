@@ -53,6 +53,10 @@ See [Roadmap](#roadmap) for what's built and what's next.
 
 **Validation built in:** Indian mobile numbers (accepts `+91`, spaces, leading 0), UPI ID format, Instagram reel links (tracking params stripped), and one submission per creator per campaign.
 
+## Deploy
+
+See **[DEPLOY.md](DEPLOY.md)**: Render (Singapore) with a persistent disk, about $7.25/month. Scheduled jobs (reel checks every 30 minutes, the 9:30 IST daily summary) run inside the app when `ENABLE_SCHEDULER=1`.
+
 ## Run it locally
 
 ```bash
@@ -75,7 +79,7 @@ Open http://localhost:8000/admin, create a campaign, then copy its creator link.
 
 **Telegram setup:** message [@BotFather](https://t.me/BotFather), send `/newbot`, and copy the token. Send your new bot any message, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `chat.id`. To alert the whole team, add the bot to a group and use the group's id.
 
-**Daily summary at 9:30 IST** (cron on the server, or a scheduled job on your host):
+**Scheduled jobs:** set `ENABLE_SCHEDULER=1` to run them inside the app (what the deployment uses), or use cron instead:
 
 ```
 30 9 * * *    cd /path/to/praabhaav && python -m app.digest
@@ -110,9 +114,9 @@ tests/            pytest suite
 
 ## Before using with real creators
 
-- Deploy behind **HTTPS** (e.g. Render, Railway, or a small VPS with Caddy). UPI IDs and phone numbers are personal data.
+- Deploy behind **HTTPS** (see [DEPLOY.md](DEPLOY.md)). UPI IDs and phone numbers are personal data.
 - Use a long random `ADMIN_PASSWORD`.
-- Back up the `.db` file regularly (or move to Postgres / Google Sheets sync in Phase 2).
+- Download a backup from admin (**Download backup**) at least weekly.
 - Edit `app/knowledge/faq.md` so it states your real payment policy. The agent only repeats what's written there.
 - The query form has no rate limit or captcha yet; add one if spam shows up.
 - Admin uses HTTP Basic auth and has no CSRF protection; fine for a small internal team, but replace it with proper login sessions before adding more staff.
