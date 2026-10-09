@@ -1,5 +1,7 @@
 """Host pages for campaigns and the per-campaign creator tracker (the 'sheet')."""
 
+import secrets
+
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
@@ -85,8 +87,53 @@ def register(app: FastAPI, ctx: Ctx) -> None:
             "apify_on": ctx.fetcher is not None,
             "job": ctx.jobs.get(campaign_id),
             "submit_link": f"{ctx.public_url(request)}/submit?campaign={campaign_id}",
+            "report_link": (f"{ctx.public_url(request)}/r/{campaign['report_token']}"
+                            if campaign["report_token"] else ""),
+            "report_saved": request.query_params.get("report"),
             "imported": request.query_params.get("imported"),
             "import_problems": request.query_params.getlist("problem"),
+        })
+
+    @app.post("/admin/campaigns/{campaign_id}/report")
+    def manage_report_link(campaign_id: int, action: str = Form(...), user: str = host):
+        """Turn the client report link on, replace it (old link stops working), or off."""
+        campaign_or_404(campaign_id)
+        if action in ("enable", "regenerate"):
+            db.set_report_token(campaign_id, secrets.token_urlsafe(18))
+        elif action == "disable":
+            db.set_report_token(campaign_id, "")
+        else:
+            raise HTTPException(400, "Unknown action")
+        return RedirectResponse(f"/admin/campaigns/{campaign_id}?report={action}", status_code=303)
+
+    # --- public client report (secret link, no login) ----------------------------
+
+    REPORT_HEADERS = {"X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer",
+                      "Cache-Control": "private, no-store"}
+
+    def report_or_404(token: str):
+        campaign = db.get_campaign_by_report_token(token)
+        if campaign is None:
+            raise HTTPException(404, "This report link isn't active. Ask Praabhaav for a new one.")
+        return campaign
+
+    @app.get("/r/{token}")
+    def client_report_page(request: Request, token: str):
+        campaign = report_or_404(token)
+        report = tracker.client_report(db.list_roster(campaign["id"]))
+        response = ctx.render(request, "report.html", {"campaign": campaign, "report": report,
+                                                       "token": token})
+        response.headers.update(REPORT_HEADERS)
+        return response
+
+    @app.get("/r/{token}/report.csv")
+    def client_report_csv(token: str):
+        campaign = report_or_404(token)
+        report = tracker.client_report(db.list_roster(campaign["id"]))
+        slug = "".join(ch if ch.isalnum() else "-" for ch in campaign["name"].lower()).strip("-")
+        return Response(tracker.report_csv(report), media_type="text/csv", headers={
+            **REPORT_HEADERS,
+            "Content-Disposition": f'attachment; filename="{slug or "campaign"}-report.csv"',
         })
 
     @app.get("/admin/campaigns/{campaign_id}/export.csv")

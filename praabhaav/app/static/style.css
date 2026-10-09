@@ -420,3 +420,33 @@ details.panel[open] > summary { margin-bottom: 14px; }
 .link-cell { display: flex; align-items: center; gap: 6px; }
 .link-cell a { text-decoration: none; }
 #roster td { vertical-align: middle; }
+
+/* client report */
+.report-bar { justify-content: space-between; }
+.report-hero { text-align: center; padding: 18px 8px 4px; }
+.report-hero h1 { font-size: clamp(2rem, 6vw, 3.2rem); margin-bottom: 6px; }
+.eyebrow { display: inline-block; font-size: 0.78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.report-headline { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; padding: 26px; }
+.report-headline .label { color: var(--muted); font-weight: 600; }
+.hero-number { font-size: clamp(3rem, 12vw, 5rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+.rank-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rank-list li { display: grid; grid-template-columns: 34px minmax(160px, 1.2fr) minmax(140px, 2fr) auto auto; gap: 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.rank-list li:last-child { border-bottom: none; }
+.rank { font-weight: 800; color: var(--faint); text-align: center; }
+.rank-list li:nth-child(-n+3) .rank { color: var(--text); }
+@media (max-width: 700px) {
+  .rank-list li { grid-template-columns: 28px 1fr auto; gap: 8px 12px; }
+  .rank-list .bar-cell { grid-column: 2 / -1; }
+  .rank-list li > .muted { grid-column: 2; }
+}
+@media print {
+  :root { color-scheme: light; --text: #1b1530; --muted: #5d5779; --faint: #8d88a6; --border: #e4e0f0; --surface: #fff; --input-bg: #f1eef9; --accent: #6d28d9; }
+  body { background: #fff !important; }
+  .no-print, #toasts { display: none !important; }
+  .topbar { position: static; background: none; backdrop-filter: none; }
+  .card, .stat { box-shadow: none; backdrop-filter: none; }
+  .stat, .report-headline, .rank-list li { break-inside: avoid; }  /* long lists may split between rows */
+  .glow::before { display: none; }
+  .bar span { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .grad-text { color: #6d28d9; background: none; }
+}

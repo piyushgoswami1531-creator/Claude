@@ -149,6 +149,8 @@ ROSTER_EDITABLE = ("handle", "profile_url", "followers", "post_link", "price", "
 # so a database created by an earlier version upgrades in place.
 MIGRATIONS = [
     ("campaigns", "audio_id", "TEXT NOT NULL DEFAULT ''"),
+    # Secret token for the client report link; '' means the link is off.
+    ("campaigns", "report_token", "TEXT NOT NULL DEFAULT ''"),
     ("submissions", "verify_status", "TEXT NOT NULL DEFAULT 'unchecked'"),
     ("submissions", "verify_notes", "TEXT NOT NULL DEFAULT ''"),
     ("submissions", "verified_at", "TEXT"),
@@ -220,6 +222,18 @@ class Database:
         with self.connect() as conn:
             return conn.execute(
                 "SELECT * FROM campaigns WHERE id = ?", (campaign_id,)
+            ).fetchone()
+
+    def set_report_token(self, campaign_id: int, token: str) -> None:
+        with self.connect() as conn:
+            conn.execute("UPDATE campaigns SET report_token = ? WHERE id = ?", (token, campaign_id))
+
+    def get_campaign_by_report_token(self, token: str) -> sqlite3.Row | None:
+        if not token:
+            return None
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM campaigns WHERE report_token = ?", (token,)
             ).fetchone()
 
     def set_campaign_active(self, campaign_id: int, active: bool) -> None:

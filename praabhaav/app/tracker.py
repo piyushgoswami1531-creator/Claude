@@ -103,6 +103,49 @@ def totals(rows) -> dict:
     }
 
 
+# --- client report -----------------------------------------------------------------
+
+def client_report(rows) -> dict:
+    """What a client may see: reach and performance only. Never prices, spend,
+    cost per view, notes or creator contact details."""
+    # Reels Apify reported as deleted/private stay off the client's page until
+    # the team fixes them (the error is shown in the team's tracker).
+    live = sorted((r for r in rows if r["reel_url"] and not r["stats_error"]),
+                  key=lambda r: (r["views"] or 0), reverse=True)
+    with_views = [r for r in live if r["views"]]
+    reels = [{
+        "handle": r["handle"], "profile_url": r["profile_url"], "followers": r["followers"],
+        "reel_url": r["reel_url"], "views": r["views"], "likes": r["likes"],
+        "comments": r["comments"],
+    } for r in live]
+    updated = max((r["stats_updated_at"] for r in live if r["stats_updated_at"]), default=None)
+    total_views = sum(r["views"] or 0 for r in live)
+    return {
+        "creators": len(rows),
+        "live": len(live),
+        "views": total_views,
+        "likes": sum(r["likes"] or 0 for r in live),
+        "comments": sum(r["comments"] or 0 for r in live),
+        "reach": sum(r["followers"] or 0 for r in rows),
+        "avg_views": total_views // len(with_views) if with_views else None,
+        "max_views": max((r["views"] or 0 for r in live), default=0),
+        "reels": reels,
+        "updated": updated,
+    }
+
+
+REPORT_CSV_COLUMNS = ["handle", "profile_url", "followers", "reel_url", "views", "likes", "comments"]
+
+
+def report_csv(report: dict) -> str:
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(REPORT_CSV_COLUMNS)
+    for reel in report["reels"]:
+        writer.writerow([reel[c] if reel[c] is not None else "" for c in REPORT_CSV_COLUMNS])
+    return buf.getvalue()
+
+
 # --- CSV import / export ------------------------------------------------------------
 
 COLUMN_HINTS = [  # first matching hint wins, checked against lowercase header text

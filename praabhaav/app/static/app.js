@@ -60,6 +60,11 @@
     }
   });
 
+  // ---------- print / save as PDF ----------
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-print]")) window.print();
+  });
+
   // ---------- confirm + busy forms ----------
   document.addEventListener("submit", (e) => {
     const form = e.target;

@@ -5,8 +5,15 @@ An operations app for Praabhaav, a music marketing company. Clients (artists, la
 The app replaces the per-campaign Google Sheets and the "where's my payment?" WhatsApp threads:
 
 - **Campaign tracker:** one page per campaign with every creator's profile, followers, post link, price per reel and live reel link. **Live views** and **follower counts** come from Instagram via Apify, with totals and cost per 1,000 views.
-- **Creator payments:** creators submit their reel and UPI ID. Reels are **checked automatically** (live? right creator? right song?), and payouts are **planned around the daily UPI limit**, so every creator sees an expected payment date.
+- **Client report links** (`/r/<secret>`):
+- On a campaign's page: **Create client report link** → **Copy link** → send it to the artist/label. **New link** replaces it (the old one stops working); **Turn off** disables it.
+- Shows campaign and song, total views (headline), live reels, likes, comments, follower reach, average views per reel, and every live reel ranked by views with a **Watch** link. Numbers update with the daily views refresh.
+- **Never shows** prices, spend, cost per view, notes, creator phone numbers or UPI IDs. Reels Apify reports as deleted/private are left off until fixed.
+- Clients can **Download CSV** or **Save as PDF** (clean light layout for printing). The page tells search engines not to index it and doesn't leak its link to other sites.
+
+**Creator payments:** creators submit their reel and UPI ID. Reels are **checked automatically** (live? right creator? right song?), and payouts are **planned around the daily UPI limit**, so every creator sees an expected payment date.
 - **Two separate logins:** **hosts** (the team) see everything; **creators** log in with a PIN and see only their own reels, payments and questions.
+- **Client report links:** a live, read-only page per campaign for the artist or label (views, likes, reach, every live reel ranked), with no login, shareable with one link, and downloadable as PDF or CSV.
 - **Query agent:** a Claude-powered assistant answers creator and client questions and escalates anything that needs a human to the team on Telegram.
 
 | Campaign tracker | Creator dashboard (phone) | Campaigns |
@@ -17,6 +24,10 @@ The app replaces the per-campaign Google Sheets and the "where's my payment?" Wh
 |---|---|---|
 | ![submissions](docs/6-submissions.png) | ![payouts](docs/7-payouts.png) | ![light](docs/8-tracker-light.png) |
 
+| Client report | Client report (phone) | |
+|---|---|---|
+| ![report](docs/10-client-report.png) | ![report phone](docs/11-client-report-phone.png) | |
+
 | Home (phone) | Submit a reel (phone) | Tracker (phone) |
 |---|---|---|
 | ![home](docs/1-home-mobile.png) | ![submit](docs/2-submit-mobile.png) | ![tracker phone](docs/9-tracker-phone.png) |
@@ -25,10 +36,11 @@ The app replaces the per-campaign Google Sheets and the "where's my payment?" Wh
 
 | | Hosts (team) | Creators | Clients |
 |---|---|---|---|
-| Log in at | `/login` (username + password) | `/me` (Instagram handle + WhatsApp number + PIN) | no login |
+| Log in at | `/login` (username + password) | `/me` (Instagram handle + WhatsApp number + PIN) | no login; secret report link |
 | Campaign trackers, all submissions, payouts, queries | ✅ | ❌ | ❌ |
 | Their own reels, payment status, expected dates, questions | ✅ | ✅ only their own | ❌ |
 | Ask a question | n/a | ✅ answered from their own records | ✅ always goes to the team |
+| Campaign report: views, likes, reach, live reels | ✅ | ❌ | ✅ only via the link you send, never prices or spend |
 
 - **Host accounts:** the owner account is `ADMIN_USER` / `ADMIN_PASSWORD` from the server settings. The owner adds and removes team members on **Team**; removing someone ends their access immediately.
 - **Creator PINs:** creators choose a 4–6 digit PIN the first time they submit. Creators who submitted before PINs existed are asked to set one at their first login.
@@ -42,6 +54,12 @@ The app replaces the per-campaign Google Sheets and the "where's my payment?" Wh
 - **Refresh live views** (Apify Reel Scraper) and **Fetch followers** (Apify Profile Scraper) run in the background with progress shown. Views also refresh automatically **once a day at 08:30 IST** for active campaigns.
 - Totals: creators, live reels, total views and likes, spend, **cost per 1,000 views**, follower reach. Each row shows its views as a bar relative to the campaign's best reel.
 - **Import your existing sheets:** Google Sheets → File → Download → CSV, then upload. Columns are matched by name. **Export** to CSV anytime.
+
+**Client report links** (`/r/<secret>`):
+- On a campaign's page: **Create client report link** → **Copy link** → send it to the artist/label. **New link** replaces it (the old one stops working); **Turn off** disables it.
+- Shows campaign and song, total views (headline), live reels, likes, comments, follower reach, average views per reel, and every live reel ranked by views with a **Watch** link. Numbers update with the daily views refresh.
+- **Never shows** prices, spend, cost per view, notes, creator phone numbers or UPI IDs. Reels Apify reports as deleted/private are left off until fixed.
+- Clients can **Download CSV** or **Save as PDF** (clean light layout for printing). The page tells search engines not to index it and doesn't leak its link to other sites.
 
 **Creator payments:**
 - `/submit?campaign=<id>`: reel link, handle, WhatsApp, UPI ID (entered twice) and PIN. Send the link (**Copy creator submit link** on the campaign page) on WhatsApp.
@@ -121,6 +139,6 @@ tests/               pytest suite
 2. Query agent, Telegram escalation, daily summary ✅
 3. Reel verification, payment planner ✅
 4. Host/creator logins, campaign tracker with live views, new interface ✅
-5. **Client reports:** a shareable read-only campaign page for artists and labels (views, reach and cost per 1,000 views are already computed).
+5. Client report links ✅
 6. **Payout API:** pay today's batch through RazorpayX / Cashfree Payouts, removing the daily UPI limit problem at the source.
 7. **Chat front-ends:** WhatsApp / Instagram DM bot on the same backend.

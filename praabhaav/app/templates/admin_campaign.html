@@ -16,6 +16,33 @@
 {% if imported %}<div class="alert alert-good" data-toast="Imported {{ imported }} creator{{ 's' if imported != '1' }}">Imported {{ imported }} row(s) from your sheet.</div>{% endif %}
 {% if import_problems %}<div class="alert alert-error"><strong>Some rows were skipped:</strong><ul>{% for p in import_problems %}<li>{{ p }}</li>{% endfor %}</ul></div>{% endif %}
 
+{% if report_saved %}<span hidden data-toast="{{ {'enable': 'Client report link created', 'regenerate': 'New link created. The old one no longer works', 'disable': 'Client report link turned off'}.get(report_saved, '') }}"></span>{% endif %}
+<section class="card report-panel">
+  <div class="card-head">
+    <div>
+      <h2>📣 Client report</h2>
+      <p class="muted small" style="margin:0">A live, read-only page for {{ campaign.client or 'the client' }}: views, likes, reach and every live reel. <strong>Prices, spend and creator contact details are never shown.</strong></p>
+    </div>
+  </div>
+  {% if report_link %}
+  <div class="inline-form">
+    <code class="grow" style="padding:10px 12px">{{ report_link }}</code>
+    <button type="button" class="small" data-copy="{{ report_link }}">Copy link</button>
+    <a class="button secondary small" href="{{ report_link }}" target="_blank" rel="noopener">Open ↗</a>
+    <form method="post" action="/admin/campaigns/{{ campaign.id }}/report" data-confirm="Create a new link? The current link will stop working for anyone who has it.">
+      <input type="hidden" name="action" value="regenerate"><button class="secondary small">New link</button>
+    </form>
+    <form method="post" action="/admin/campaigns/{{ campaign.id }}/report" data-confirm="Turn off the client report? The link will stop working.">
+      <input type="hidden" name="action" value="disable"><button class="ghost small">Turn off</button>
+    </form>
+  </div>
+  {% else %}
+  <form method="post" action="/admin/campaigns/{{ campaign.id }}/report">
+    <input type="hidden" name="action" value="enable"><button class="small">Create client report link</button>
+  </form>
+  {% endif %}
+</section>
+
 <section class="stats" id="roster-totals">{% include "_roster_totals.html" %}</section>
 
 <section class="card" id="tracker" data-campaign-id="{{ campaign.id }}" data-job-state="{{ job.state }}">
