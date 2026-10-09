@@ -50,3 +50,19 @@ def clean_reel_url(raw: str) -> str:
             "Paste the full Instagram reel link, e.g. https://www.instagram.com/reel/abc123/"
         )
     return url.split("?")[0]
+
+
+def clean_name(raw: str) -> str:
+    name = " ".join(raw.split())
+    if not 2 <= len(name) <= 80:
+        raise ValueError("Enter your name or company name (2–80 characters).")
+    return name
+
+
+def clean_message(raw: str) -> str:
+    message = raw.strip()
+    if len(message) < 5:
+        raise ValueError("Please describe your query in a few words.")
+    if len(message) > 2000:
+        raise ValueError("Please keep your message under 2000 characters.")
+    return message

@@ -35,6 +35,22 @@
     </dl>
   </article>
   {% endfor %}
+
+  {% if tickets %}
+  <h2 class="section-title">Your questions</h2>
+  {% for t in tickets %}
+  <article class="card result">
+    <div class="result-head">
+      <h2>Query #{{ t.id }}</h2>
+      <span class="badge badge-t-{{ t.status }}">{{ 'with team' if t.status == 'escalated' else t.status }}</span>
+    </div>
+    <p class="quote">{{ t.message }}</p>
+    <p>{{ t.ai_reply }}</p>
+    {% if t.team_reply %}<p class="note"><strong>From the Praabhaav team:</strong> {{ t.team_reply }}</p>{% endif %}
+  </article>
+  {% endfor %}
+  {% endif %}
+  <p class="muted">Something wrong? <a href="/query">Ask a question</a>.</p>
 </section>
 {% endif %}
 {% endblock %}

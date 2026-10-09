@@ -11,6 +11,12 @@ ADMIN = ("admin", "secret")
 REEL = "https://www.instagram.com/reel/Cabc123_-x/"
 
 
+@pytest.fixture(autouse=True)
+def clean_env(monkeypatch):
+    for var in ("ANTHROPIC_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "PUBLIC_BASE_URL"):
+        monkeypatch.delenv(var, raising=False)
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("ADMIN_PASSWORD", "secret")
@@ -163,7 +169,9 @@ def test_stats_and_overdue(client, tmp_path):
     with database.connect() as conn:
         conn.execute("UPDATE submissions SET submitted_at = ? WHERE id = 1", (old,))
     stats = database.stats()
-    assert stats == {"pending": 2, "pending_amount": 800, "overdue": 1, "issues": 0}
+    assert stats == {
+        "pending": 2, "pending_amount": 800, "overdue": 1, "issues": 0, "open_tickets": 0,
+    }
 
 
 def test_export_csv_filters_and_escapes(client):

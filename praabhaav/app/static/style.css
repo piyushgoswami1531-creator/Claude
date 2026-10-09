@@ -9,6 +9,7 @@
   --error-bg: #fdecec;
   --error-text: #9b1c1c;
   --overdue-bg: #fff4e5;
+  --info-bg: #ece8ff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,6 +23,7 @@
     --error-bg: #3a1a1a;
     --error-text: #f5b3b3;
     --overdue-bg: #3a2a12;
+    --info-bg: #26213f;
   }
 }
 
@@ -142,3 +144,27 @@ td code { white-space: nowrap; }
 .row-form input[name="amount"] { width: 90px; }
 .row-form input[name="note"] { min-width: 160px; }
 .row-form select, .row-form input { padding: 6px 8px; }
+
+textarea { font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); resize: vertical; }
+fieldset.role-pick { border: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px 20px; }
+fieldset.role-pick legend { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; padding: 0; }
+.form label.radio { flex-direction: row; align-items: center; gap: 6px; font-weight: 400; }
+.small-print { font-size: 0.85rem; margin-top: 12px; }
+.alert-info { background: var(--info-bg); margin-top: 16px; word-break: break-all; }
+.quote { border-left: 3px solid var(--border); padding-left: 12px; color: var(--muted); white-space: pre-wrap; }
+.section-title { margin: 24px 0 8px; }
+
+.admin-nav { display: flex; gap: 16px; }
+.admin-nav a[aria-current="page"] { font-weight: 700; text-decoration: none; color: var(--text); }
+a.stat { text-decoration: none; color: inherit; }
+
+.ticket { border-top: 1px solid var(--border); padding: 16px 0; }
+.ticket:first-of-type { border-top: none; }
+.ticket.priority-high { border-left: 4px solid var(--error-text); padding-left: 12px; }
+.ticket p { margin: 6px 0; }
+.row-form .grow { flex: 1; min-width: 200px; }
+.row-form input[name="upi_id"] { width: 170px; }
+
+.badge-p-high, .badge-t-escalated { background: var(--error-bg); color: var(--error-text); }
+.badge-t-answered { background: #e3dcff; color: #3b1fc4; }
+.badge-t-resolved { background: #d7f5e1; color: #13692f; }

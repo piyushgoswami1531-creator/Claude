@@ -2,13 +2,20 @@
 {% block title %}Admin · Praabhaav{% endblock %}
 {% block body_class %}admin{% endblock %}
 {% block content %}
-<h1>Payments tracker</h1>
+<div class="toolbar">
+  <h1>Payments tracker</h1>
+  <nav class="admin-nav">
+    <a href="/admin" aria-current="page">Payments</a>
+    <a href="/admin/tickets">Queries ({{ stats.open_tickets }} open)</a>
+  </nav>
+</div>
 
 <section class="stats">
   <div class="stat"><span class="stat-num">{{ stats.pending }}</span><span>Waiting for payment</span></div>
   <div class="stat"><span class="stat-num">₹{{ stats.pending_amount }}</span><span>Amount pending</span></div>
   <div class="stat {% if stats.overdue %}stat-alert{% endif %}"><span class="stat-num">{{ stats.overdue }}</span><span>Overdue (&gt;48h)</span></div>
   <div class="stat {% if stats.issues %}stat-alert{% endif %}"><span class="stat-num">{{ stats.issues }}</span><span>Issues</span></div>
+  <a class="stat {% if stats.open_tickets %}stat-alert{% endif %}" href="/admin/tickets"><span class="stat-num">{{ stats.open_tickets }}</span><span>Open queries</span></a>
 </section>
 
 <section class="card">
@@ -78,6 +85,7 @@
             </select>
             <input name="amount" type="number" min="0" value="{{ s.amount }}" aria-label="Amount">
             <input name="note" value="{{ s.note }}" placeholder="Note shown to creator">
+            <input name="upi_id" placeholder="New UPI (only to change)" autocapitalize="off" aria-label="New UPI ID">
             <button class="small">Save</button>
           </form>
         </td>
