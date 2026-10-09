@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Host login · Praabhaav{% endblock %}
+{% block content %}
+<section class="card glow" style="max-width:440px;margin:40px auto">
+  <h1>Host login</h1>
+  <p class="muted">For the Praabhaav team only.</p>
+  {% if disabled %}
+  <div class="alert alert-error">No host accounts exist yet. Set <code>ADMIN_PASSWORD</code> on the server to create the owner account.</div>
+  {% else %}
+  <form method="post" action="/login" class="form">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label>Username<input name="username" required autocapitalize="off" autocomplete="username" value="{{ username or '' }}" autofocus></label>
+    <label>Password<input name="password" type="password" required autocomplete="current-password"></label>
+    <button type="submit" class="block">Log in</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

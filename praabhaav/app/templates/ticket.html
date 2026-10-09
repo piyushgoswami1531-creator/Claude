@@ -1,25 +1,25 @@
 {% extends "base.html" %}
 {% block title %}Your query #{{ ticket.id }} · Praabhaav{% endblock %}
 {% block content %}
-<section class="card">
-  <div class="result-head">
+<section class="card glow">
+  <div class="card-head">
     <h1>Query #{{ ticket.id }}</h1>
     <span class="badge badge-t-{{ ticket.status }}">{{ 'with team' if ticket.status == 'escalated' else ticket.status }}</span>
   </div>
   <p class="quote">{{ ticket.message }}</p>
-
   <h2>Reply</h2>
   <p>{{ ticket.ai_reply }}</p>
-
   {% if ticket.team_reply %}
   <p class="note"><strong>From the Praabhaav team:</strong> {{ ticket.team_reply }}</p>
   {% endif %}
-
   {% if just_created and ticket_url %}
   <div class="alert alert-info">
-    Save this link to check for the team's reply later:<br>
-    <a href="{{ ticket_url }}">{{ request.base_url }}{{ ticket_url[1:] }}</a>
-    {% if ticket.role == 'creator' %}<br>Replies also show on the <a href="/status">payment status</a> page.{% endif %}
+    Save this link to check for the team's reply later:
+    <div class="inline-form" style="margin-top:8px">
+      <a class="grow" href="{{ ticket_url }}"><code>{{ request.base_url }}{{ ticket_url[1:] }}</code></a>
+      <button type="button" class="secondary small" data-copy="{{ request.base_url }}{{ ticket_url[1:] }}">Copy link</button>
+    </div>
+    {% if ticket.role == 'creator' %}<p class="small" style="margin:8px 0 0">Replies also show on <a href="/me">My payments</a>.</p>{% endif %}
   </div>
   {% endif %}
 </section>

@@ -4,24 +4,32 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Praabhaav{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="{{ url_for('static', path='favicon.svg') }}" type="image/svg+xml">
   <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+  <script src="{{ url_for('static', path='app.js') }}" defer></script>
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body{% block body_attrs %}{% endblock %}>
+{% block layout %}
   <header class="topbar">
-    <a class="brand" href="/submit">Praabhaav</a>
-    <nav>
-      <a href="/submit">Submit reel</a>
-      <a href="/status">Payment status</a>
-      <a href="/query">Ask a question</a>
+    <a class="brand" href="/"><span class="brand-mark">P</span><span>Praabhaav</span></a>
+    <nav class="topnav" aria-label="Main">
+      {% set path = request.url.path %}
+      <a href="/submit" {% if path == '/submit' %}aria-current="page"{% endif %}>Submit reel</a>
+      <a href="/me" {% if path.startswith('/me') %}aria-current="page"{% endif %}>My payments</a>
+      <a href="/query" {% if path == '/query' %}aria-current="page"{% endif %}>Ask a question</a>
+      {% if viewer_creator or viewer_host %}
+      <form method="post" action="/logout"><button class="linklike small" type="submit">Log out</button></form>
+      {% endif %}
     </nav>
   </header>
-  <main>
-    {% if errors %}
-    <div class="alert alert-error" role="alert">
-      <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
-    </div>
-    {% endif %}
+  <main class="public {% block main_class %}{% endblock %}">
+    {% include "_errors.html" %}
     {% block content %}{% endblock %}
   </main>
+{% endblock %}
+  <div id="toasts" aria-live="polite"></div>
 </body>
 </html>

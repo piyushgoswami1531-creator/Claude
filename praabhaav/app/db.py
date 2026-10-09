@@ -94,7 +94,56 @@ CREATE TABLE IF NOT EXISTS settings (
     key    TEXT PRIMARY KEY,
     value  TEXT NOT NULL
 );
+
+-- Team members who can log in to the host dashboard.
+CREATE TABLE IF NOT EXISTS hosts (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    username    TEXT NOT NULL UNIQUE,
+    name        TEXT NOT NULL DEFAULT '',
+    pw_hash     TEXT NOT NULL,
+    created_at  TEXT NOT NULL
+);
+
+-- Creator logins: Instagram handle + WhatsApp number + PIN.
+CREATE TABLE IF NOT EXISTS creator_accounts (
+    ig_handle   TEXT NOT NULL,
+    whatsapp    TEXT NOT NULL,
+    pin_hash    TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    PRIMARY KEY (ig_handle, whatsapp)
+);
+
+-- Failed login counters, for temporary lockouts.
+CREATE TABLE IF NOT EXISTS login_failures (
+    key           TEXT PRIMARY KEY,
+    failures      INTEGER NOT NULL DEFAULT 0,
+    locked_until  REAL NOT NULL DEFAULT 0
+);
+
+-- Campaign tracker: the per-campaign creator sheet.
+CREATE TABLE IF NOT EXISTS roster (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    campaign_id       INTEGER NOT NULL REFERENCES campaigns(id),
+    handle            TEXT NOT NULL,
+    profile_url       TEXT NOT NULL DEFAULT '',
+    followers         INTEGER,
+    post_link         TEXT NOT NULL DEFAULT '',
+    price             INTEGER,
+    reel_url          TEXT NOT NULL DEFAULT '',
+    views             INTEGER,
+    likes             INTEGER,
+    comments          INTEGER,
+    stats_updated_at  TEXT,
+    stats_error       TEXT NOT NULL DEFAULT '',
+    notes             TEXT NOT NULL DEFAULT '',
+    created_at        TEXT NOT NULL,
+    updated_at        TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_roster_campaign ON roster (campaign_id);
 """
+
+ROSTER_EDITABLE = ("handle", "profile_url", "followers", "post_link", "price", "reel_url", "notes")
 
 # Columns added after Phase 1/2. Applied to new and existing databases alike,
 # so a database created by an earlier version upgrades in place.
@@ -376,6 +425,137 @@ class Database:
                 (ts, ts, *submission_ids),
             )
             return cur.rowcount
+
+    # --- hosts & creator accounts -------------------------------------------
+
+    def add_host(self, username: str, name: str, pw_hash: str) -> int:
+        with self.connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO hosts (username, name, pw_hash, created_at) VALUES (?, ?, ?, ?)",
+                (username, name, pw_hash, to_iso(now_utc())),
+            )
+            return cur.lastrowid
+
+    def get_host(self, username: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM hosts WHERE username = ?", (username,)).fetchone()
+
+    def list_hosts(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM hosts ORDER BY username").fetchall()
+
+    def set_host_password(self, username: str, pw_hash: str) -> None:
+        with self.connect() as conn:
+            conn.execute("UPDATE hosts SET pw_hash = ? WHERE username = ?", (pw_hash, username))
+
+    def delete_host(self, username: str) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM hosts WHERE username = ?", (username,))
+
+    def get_creator_account(self, ig_handle: str, whatsapp: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM creator_accounts WHERE ig_handle = ? AND whatsapp = ?",
+                (ig_handle, whatsapp),
+            ).fetchone()
+
+    def set_creator_pin(self, ig_handle: str, whatsapp: str, pin_hash: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO creator_accounts (ig_handle, whatsapp, pin_hash, created_at)"
+                " VALUES (?, ?, ?, ?) ON CONFLICT(ig_handle, whatsapp)"
+                " DO UPDATE SET pin_hash = excluded.pin_hash",
+                (ig_handle, whatsapp, pin_hash, to_iso(now_utc())),
+            )
+
+    def delete_creator_account(self, ig_handle: str, whatsapp: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "DELETE FROM creator_accounts WHERE ig_handle = ? AND whatsapp = ?",
+                (ig_handle, whatsapp),
+            )
+            conn.execute("DELETE FROM login_failures WHERE key = ?",
+                         (f"creator:{ig_handle}:{whatsapp}",))
+
+    def is_locked(self, key: str, now: float) -> bool:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT locked_until FROM login_failures WHERE key = ?", (key,)
+            ).fetchone()
+        return bool(row and row["locked_until"] > now)
+
+    def record_login_failure(self, key: str, now: float, max_failures: int, lock_seconds: int) -> None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT failures FROM login_failures WHERE key = ?", (key,)).fetchone()
+            failures = (row["failures"] if row else 0) + 1
+            locked_until = now + lock_seconds if failures >= max_failures else 0
+            if locked_until:
+                failures = 0
+            conn.execute(
+                "INSERT INTO login_failures (key, failures, locked_until) VALUES (?, ?, ?)"
+                " ON CONFLICT(key) DO UPDATE SET failures = excluded.failures,"
+                " locked_until = excluded.locked_until",
+                (key, failures, locked_until),
+            )
+
+    def clear_login_failures(self, key: str) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM login_failures WHERE key = ?", (key,))
+
+    # --- campaign tracker (roster) -----------------------------------------
+
+    def add_roster_row(self, campaign_id: int, **fields) -> int:
+        fields = {k: v for k, v in fields.items() if k in ROSTER_EDITABLE}
+        ts = to_iso(now_utc())
+        cols = ["campaign_id", *fields, "created_at", "updated_at"]
+        with self.connect() as conn:
+            cur = conn.execute(
+                f"INSERT INTO roster ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+                (campaign_id, *fields.values(), ts, ts),
+            )
+            return cur.lastrowid
+
+    def get_roster_row(self, row_id: int) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM roster WHERE id = ?", (row_id,)).fetchone()
+
+    def list_roster(self, campaign_id: int) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM roster WHERE campaign_id = ? ORDER BY id", (campaign_id,)
+            ).fetchall()
+
+    def update_roster_row(self, row_id: int, **fields) -> None:
+        fields = {k: v for k, v in fields.items() if k in ROSTER_EDITABLE}
+        if not fields:
+            return
+        sets = ", ".join(f"{k} = ?" for k in fields)
+        with self.connect() as conn:
+            conn.execute(
+                f"UPDATE roster SET {sets}, updated_at = ? WHERE id = ?",
+                (*fields.values(), to_iso(now_utc()), row_id),
+            )
+
+    def set_roster_stats(self, row_id: int, *, views=None, likes=None, comments=None,
+                         followers=None, error: str = "") -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "UPDATE roster SET views = COALESCE(?, views), likes = COALESCE(?, likes),"
+                " comments = COALESCE(?, comments), followers = COALESCE(?, followers),"
+                " stats_error = ?, stats_updated_at = ? WHERE id = ?",
+                (views, likes, comments, followers, error, to_iso(now_utc()), row_id),
+            )
+
+    def delete_roster_row(self, row_id: int) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM roster WHERE id = ?", (row_id,))
+
+    def active_roster_with_reels(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT r.* FROM roster r JOIN campaigns c ON c.id = r.campaign_id"
+                " WHERE c.active = 1 AND r.reel_url != ''"
+            ).fetchall()
 
     # --- tickets -----------------------------------------------------------
 

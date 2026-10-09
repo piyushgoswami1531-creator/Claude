@@ -56,21 +56,25 @@ Environment variables:
 | `ENABLE_SCHEDULER` | `1` |
 | `ADMIN_USER` | `admin` |
 | `ADMIN_PASSWORD` | a long random password (e.g. from a password manager) |
+| `SECRET_KEY` | another long random string (signs logins; changing it logs everyone out) |
 | `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `APIFY_TOKEN` | from Step 1 |
 
 </details>
 
 ## Step 3: Log in
 
-Find the generated admin password in Render: your service → **Environment** → `ADMIN_PASSWORD` → reveal. Open `https://<your-url>/admin`, then log in as `admin` with that password. Save it in a password manager.
+Find the generated owner password in Render: your service → **Environment** → `ADMIN_PASSWORD` → reveal. Open `https://<your-url>/login`, then log in as `admin` with that password. Save it in a password manager.
+
+Then open **Team** and add an account for each team member, so nobody shares the owner password.
 
 ## Step 4: Check that everything works
 
 - [ ] `https://<your-url>/healthz` shows `{"ok":true}`
-- [ ] `/admin` loads after logging in
+- [ ] `/login` works, and **Team** lets you add a member who can then log in
 - [ ] Create a test campaign **with the song's Instagram audio link**
 - [ ] Open its creator link and submit a reel **from your own Instagram account**
-- [ ] `/status` shows it (use the same handle and number)
+- [ ] **My payments** (`/me`) shows it after logging in with that handle, number and PIN
+- [ ] Create a campaign tracker row, edit a cell, and click **Refresh live views**
 - [ ] `/query`: ask "wrong UPI entered". A Telegram alert should arrive within seconds
 - [ ] **Submissions → Check pending reels now**, then refresh after a minute. Your reel shows *passed* or *failed* with a reason
 - [ ] **Payouts:** set your real daily UPI limit
@@ -85,7 +89,7 @@ Delete the test campaign's data afterwards (or keep it as a demo), and **edit `a
 | Link | Where |
 |---|---|
 | `https://<your-url>/submit?campaign=<id>` (copy from admin) | WhatsApp, when a creator agrees to a campaign |
-| `https://<your-url>/status` | Instagram bio, WhatsApp auto-reply |
+| `https://<your-url>/me` (creator login: "My payments") | Instagram bio, WhatsApp auto-reply |
 | `https://<your-url>/query` | Instagram bio, WhatsApp auto-reply |
 
 ## Day-to-day
@@ -98,7 +102,9 @@ Delete the test campaign's data afterwards (or keep it as a demo), and **edit `a
 
 | Symptom | Fix |
 |---|---|
-| `/admin` says "Admin is disabled" | `ADMIN_PASSWORD` isn't set. Add it under Environment |
+| Login page says "No host accounts exist yet" | `ADMIN_PASSWORD` isn't set. Add it under Environment |
+| Everyone gets logged out after each deploy | `SECRET_KEY` isn't set. Add it under Environment |
+| A creator forgot their PIN | Submissions → **Reset PIN** under their name (check it's really them first) |
 | Data gone after a deploy | `PRAABHAAV_DB` isn't under `/data`, or no disk is attached |
 | No Telegram alerts | Check both Telegram variables; the bot must have received a message from that chat first |
 | "Automatic reel checks are off" | `APIFY_TOKEN` is missing |
@@ -113,7 +119,7 @@ The [`Dockerfile`](Dockerfile) works on any Docker host (Railway, Fly.io, or a V
 docker build -t praabhaav ./praabhaav
 docker run -d --restart unless-stopped -p 8000:8000 -v praabhaav-data:/data \
   -e PRAABHAAV_DB=/data/praabhaav.db -e ENABLE_SCHEDULER=1 \
-  -e ADMIN_PASSWORD=... -e PUBLIC_BASE_URL=https://your-domain \
+  -e ADMIN_PASSWORD=... -e SECRET_KEY=... -e PUBLIC_BASE_URL=https://your-domain \
   praabhaav
 ```
 

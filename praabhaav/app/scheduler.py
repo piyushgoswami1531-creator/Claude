@@ -5,6 +5,7 @@ service's disk (where the SQLite database lives), so the jobs run inside the
 web process instead. Enable with ENABLE_SCHEDULER=1 and run a single instance.
 
 - Reel checks every 30 minutes (only if APIFY_TOKEN is set).
+- Live views for active campaigns' trackers once a day at 08:30 IST (APIFY_TOKEN).
 - Daily summary to Telegram at 09:30 IST, at most once per day even across restarts.
 """
 
@@ -16,11 +17,13 @@ from .db import IST, Database, now_utc
 from .digest import build_digest
 from .notify import Notifier
 from .reels import verify_pending
+from .tracker import refresh_views
 
 log = logging.getLogger(__name__)
 
 VERIFY_EVERY = timedelta(minutes=30)
 DIGEST_AT = time(9, 30)  # IST
+VIEWS_AT = time(8, 30)  # IST, before the summary so its numbers are fresh
 
 
 class Scheduler:
@@ -46,6 +49,15 @@ class Scheduler:
 
         local = now.astimezone(IST)
         today = local.date().isoformat()
+        if (self.fetcher is not None and local.time() >= VIEWS_AT
+                and self.db.get_setting("last_views_date") != today):
+            self.db.set_setting("last_views_date", today)
+            try:
+                refresh_views(self.db, self.db.active_roster_with_reels(), self.fetcher)
+                ran.append("views")
+            except Exception:
+                log.exception("Scheduled views refresh failed")
+
         if local.time() >= DIGEST_AT and self.db.get_setting("last_digest_date") != today:
             # Mark first so a crash mid-send can't cause repeated summaries.
             self.db.set_setting("last_digest_date", today)

@@ -84,3 +84,12 @@ def clean_audio(raw: str) -> str:
             "Paste the Instagram audio link, e.g. https://www.instagram.com/reels/audio/1234567890/"
         )
     return m.group(1)
+
+
+def clean_pin(pin: str, confirm: str | None = None) -> str:
+    pin = pin.strip()
+    if not re.fullmatch(r"\d{4,6}", pin):
+        raise ValueError("Your PIN must be 4 to 6 digits.")
+    if confirm is not None and pin != confirm.strip():
+        raise ValueError("The two PINs don't match.")
+    return pin

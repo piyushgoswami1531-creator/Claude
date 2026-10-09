@@ -11,6 +11,7 @@ from app.digest import build_digest
 from app.main import create_app
 from app.planner import plan_payouts, today_ist
 from app.reels import check_reel, shortcode, verify_pending
+from tests.helpers import creator_page, login_creator, submit_reel
 
 ADMIN = ("admin", "secret")
 TODAY = date(2026, 10, 9)
@@ -172,7 +173,7 @@ def seed(c, *creators, amount=500, audio_link=""):
         "audio_link": audio_link,
     })
     for i, handle in enumerate(creators):
-        c.post("/submit", data={
+        submit_reel(c, {
             "campaign_id": 1, "ig_handle": handle, "whatsapp": f"98765432{i:02d}",
             "upi_id": f"{handle}@okaxis", "upi_confirm": f"{handle}@okaxis",
             "reel_url": f"https://www.instagram.com/reel/CODE{i}/",
@@ -311,7 +312,7 @@ def test_mark_paid_ignores_unapproved(app_env):
 def test_limit_must_be_positive(app_env):
     c, _, _ = app_env()
     assert c.post("/admin/payouts/limit", auth=ADMIN, data={"daily_limit": 0}).status_code == 400
-    assert c.get("/admin/payouts").status_code == 401
+    assert c.get("/admin/payouts", follow_redirects=False).status_code == 303
 
 
 def test_creator_sees_expected_date_and_agent_uses_it(app_env):
@@ -321,11 +322,11 @@ def test_creator_sees_expected_date_and_agent_uses_it(app_env):
     db.set_daily_limit(600)
     tomorrow = today_ist() + timedelta(days=1)
 
-    r = c.post("/status", data={"ig_handle": "aman", "whatsapp": "9876543201"})
+    r = creator_page(c, "aman", "9876543201")
     assert tomorrow.strftime("%a, %d %b") in r.text
 
-    r = c.post("/query", data={"role": "creator", "name": "aman", "whatsapp": "9876543201",
-                               "message": "payment kab aayega?"})
+    login_creator(c, "aman", "9876543201")
+    r = c.post("/query", data={"message": "payment kab aayega?"})
     assert f"expected by {tomorrow:%d %b}" in r.text
 
 

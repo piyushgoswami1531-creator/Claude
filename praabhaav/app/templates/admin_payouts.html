@@ -1,27 +1,23 @@
-{% extends "base.html" %}
-{% block title %}Payouts · Praabhaav admin{% endblock %}
-{% block body_class %}admin{% endblock %}
+{% extends "admin_base.html" %}
+{% block title %}Payouts · Praabhaav{% endblock %}
 {% block content %}
-<div class="toolbar">
-  <h1>Payment planner</h1>
-  {% set active = 'payouts' %}{% include "_admin_nav.html" %}
+<div class="page-head">
+  <div><h1>Payment planner</h1><p class="muted">Oldest first, within your daily UPI limit.</p></div>
+  <form method="post" action="/admin/payouts/limit" class="inline-form">
+    <label for="daily_limit" class="muted small">Daily UPI limit ₹</label>
+    <input id="daily_limit" name="daily_limit" type="number" min="1" value="{{ daily_limit }}" style="width:140px">
+    <button class="secondary small">Update</button>
+  </form>
 </div>
 
-<section class="card">
-  <div class="toolbar">
-    <h2>Today · {{ today.strftime('%a %d %b') }}</h2>
-    <form method="post" action="/admin/payouts/limit" class="inline-form">
-      <label for="daily_limit">Daily UPI limit ₹</label>
-      <input id="daily_limit" name="daily_limit" type="number" min="1" value="{{ daily_limit }}">
-      <button class="small secondary">Update</button>
-    </form>
-  </div>
+<section class="card glow">
   {% set planned_today = todays | sum(attribute='submission.amount') %}
   {% set used = paid_today + planned_today %}
+  <div class="card-head"><h2>Today · {{ today.strftime('%a %d %b') }}</h2><span class="muted small num">₹{{ used | inr }} of ₹{{ daily_limit | inr }}</span></div>
   <div class="limit-bar" role="img" aria-label="₹{{ used | inr }} of ₹{{ daily_limit | inr }} used today">
     <span style="width: {{ [100, (used * 100 / daily_limit) | round] | min }}%"></span>
   </div>
-  <p class="muted">Paid so far today ₹{{ paid_today | inr }} · today's batch ₹{{ planned_today | inr }} · limit ₹{{ daily_limit | inr }}</p>
+  <p class="muted small">Paid so far today ₹{{ paid_today | inr }} · today's batch ₹{{ planned_today | inr }}</p>
 
   {% if over_limit %}
   <div class="alert alert-error">
@@ -30,32 +26,32 @@
   {% endif %}
 
   {% if todays %}
-  <form method="post" action="/admin/payouts/mark-paid">
+  <form method="post" action="/admin/payouts/mark-paid" data-busy>
     <p>Pay these in order, then untick any that failed and mark the rest as paid.</p>
     <div class="table-wrap">
     <table>
-      <thead><tr><th>Paid?</th><th>Creator</th><th>UPI</th><th>Amount</th><th>Campaign</th><th>Waiting since</th></tr></thead>
+      <thead><tr><th>Paid?</th><th>Creator</th><th>UPI</th><th class="right">Amount</th><th>Campaign</th><th>Waiting since</th></tr></thead>
       <tbody>
       {% for p in todays %}{% set s = p.submission %}
         <tr class="{% if is_overdue(s) %}overdue{% endif %}">
           <td><input type="checkbox" name="submission_ids" value="{{ s.id }}" checked aria-label="Paid @{{ s.ig_handle }}"></td>
-          <td>@{{ s.ig_handle }}<br><span class="muted">{{ s.whatsapp }}</span></td>
-          <td><code>{{ s.upi_id }}</code></td>
-          <td>₹{{ s.amount | inr }}</td>
+          <td><div class="who-cell"><span class="avatar">{{ s.ig_handle[:1] | upper }}</span><div><strong>@{{ s.ig_handle }}</strong><div class="faint small">{{ s.whatsapp }}</div></div></div></td>
+          <td><code>{{ s.upi_id }}</code> <button type="button" class="ghost small" data-copy="{{ s.upi_id }}" aria-label="Copy UPI ID">⧉</button></td>
+          <td class="right num"><strong>₹{{ s.amount | inr }}</strong></td>
           <td>{{ s.campaign_name }}</td>
-          <td>{{ s.submitted_at | ist }}</td>
+          <td class="nowrap">{{ s.submitted_at | ist }}</td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
     </div>
-    <div class="inline-form">
-      <button>Mark ticked as paid</button>
-      <a class="button secondary" href="/admin/payouts/today.csv">Download today's batch (CSV)</a>
+    <div class="inline-form" style="margin-top:14px">
+      <button>✓ Mark ticked as paid</button>
+      <a class="button secondary" href="/admin/payouts/today.csv">⬇ Today's batch (CSV)</a>
     </div>
   </form>
   {% else %}
-  <p class="muted">Nothing to pay today.</p>
+  <p class="empty">Nothing to pay today. 🎉</p>
   {% endif %}
 </section>
 
@@ -64,13 +60,13 @@
   {% if days %}
   <ul class="day-list">
     {% for day, items, total in days %}
-    <li><strong>{{ day.strftime('%a %d %b') }}</strong>: {{ items | length }} creator{{ 's' if items | length != 1 }} · ₹{{ total | inr }}
-      <span class="muted">({% for p in items[:6] %}@{{ p.submission.ig_handle }}{{ ", " if not loop.last }}{% endfor %}{% if items | length > 6 %}, +{{ items | length - 6 }} more{% endif %})</span></li>
+    <li><strong>{{ day.strftime('%a %d %b') }}</strong><span class="num">{{ items | length }} creator{{ 's' if items | length != 1 }} · ₹{{ total | inr }}</span>
+      <span class="muted small">{% for p in items[:6] %}@{{ p.submission.ig_handle }}{{ ", " if not loop.last }}{% endfor %}{% if items | length > 6 %}, +{{ items | length - 6 }} more{% endif %}</span></li>
     {% endfor %}
   </ul>
   {% else %}
   <p class="muted">The queue clears today. 🎉</p>
   {% endif %}
-  <p class="muted small-print">Creators see their expected date on the status page, and the query agent uses it too. Raise the daily limit (e.g. by adding a second account) to clear the queue faster.</p>
+  <p class="muted small" style="margin-top:12px">Creators see their expected date on their dashboard, and the query agent uses it too.</p>
 </section>
 {% endblock %}

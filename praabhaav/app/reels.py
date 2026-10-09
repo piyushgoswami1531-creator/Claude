@@ -29,6 +29,9 @@ log = logging.getLogger(__name__)
 APIFY_URL = (
     "https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items"
 )
+APIFY_PROFILE_URL = (
+    "https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items"
+)
 SHORTCODE_RE = re.compile(r"instagram\.com/(?:reel|reels|p)/([A-Za-z0-9_-]+)")
 # One check at a time: the scheduler and the admin button can both trigger a run.
 _run_lock = threading.Lock()
@@ -51,18 +54,29 @@ class ApifyReelFetcher:
         token = os.environ.get("APIFY_TOKEN")
         return cls(token) if token else None
 
-    def fetch(self, urls: list[str]) -> dict[str, dict]:
-        """One Apify run for all URLs. Returns shortcode -> scraped reel item."""
+    def _run(self, url: str, payload: dict) -> list[dict]:
         r = httpx.post(
-            APIFY_URL,
+            url,
             # Token in a header, not the query string, so it never lands in logs.
             headers={"Authorization": f"Bearer {self.token}"},
-            json={"username": urls, "resultsLimit": 1},
+            json=payload,
             timeout=self.timeout,
         )
         r.raise_for_status()
+        return r.json()
+
+    def fetch_profiles(self, usernames: list[str]) -> dict[str, dict]:
+        """One Apify Profile Scraper run. Returns lowercase username -> profile item."""
+        return {
+            (item.get("username") or "").lower(): item
+            for item in self._run(APIFY_PROFILE_URL, {"usernames": usernames})
+            if item.get("username")
+        }
+
+    def fetch(self, urls: list[str]) -> dict[str, dict]:
+        """One Apify run for all URLs. Returns shortcode -> scraped reel item."""
         items: dict[str, dict] = {}
-        for item in r.json():
+        for item in self._run(APIFY_URL, {"username": urls, "resultsLimit": 1}):
             # Error items (e.g. {"url": ..., "error": "not_found"}) carry only "url".
             code = (
                 item.get("shortCode")

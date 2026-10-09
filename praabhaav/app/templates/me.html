@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}My payments · Praabhaav{% endblock %}
+{% block content %}
+{% set paid = results | selectattr('status', 'equalto', 'paid') | list %}
+{% set waiting = results | rejectattr('status', 'in', ['paid', 'issue']) | list %}
+<div class="page-head">
+  <div>
+    <h1>Hi, <span class="grad-text">@{{ handle }}</span> 👋</h1>
+    <p class="muted">Only you can see this page.</p>
+  </div>
+  <a class="button small" href="/submit">+ Submit a reel</a>
+</div>
+
+<section class="stats">
+  <div class="stat"><span class="label">Earned</span><span class="value" data-count="{{ paid | sum(attribute='amount') }}" data-format="inr">₹{{ paid | sum(attribute='amount') | inr }}</span></div>
+  <div class="stat"><span class="label">On the way</span><span class="value" data-count="{{ waiting | sum(attribute='amount') }}" data-format="inr">₹{{ waiting | sum(attribute='amount') | inr }}</span></div>
+  <div class="stat"><span class="label">Reels</span><span class="value" data-count="{{ results | length }}">{{ results | length }}</span></div>
+</section>
+
+{% if not results %}
+  <div class="card empty">No reels yet. <a href="/submit">Submit your first reel</a>.</div>
+{% endif %}
+
+{% set order = ['submitted', 'approved', 'scheduled', 'paid'] %}
+{% for r in results %}
+{% set reached = order.index(r.status) if r.status in order else 0 %}
+<article class="card reel-card">
+  <div class="head">
+    <div>
+      <h2>{{ r.campaign_name }}</h2>
+      <span class="muted small">Submitted {{ r.submitted_at | ist }}</span>
+    </div>
+    <span class="badge badge-{{ r.status }}">{{ r.status }}</span>
+  </div>
+  <div class="steps {% if r.status == 'issue' %}issue{% endif %}" aria-hidden="true">
+    {% for st in order %}<div class="step {% if loop.index0 <= reached %}done{% endif %}">{{ st }}</div>{% endfor %}
+  </div>
+  <p>{{ STATUS_MESSAGES[r.status] }}</p>
+  {% if r.note %}<p class="note"><strong>Note from team:</strong> {{ r.note }}</p>{% endif %}
+  <dl class="facts">
+    <dt>Amount</dt><dd>₹{{ r.amount | inr }}</dd>
+    {% if r.id in expected %}<dt>Expected</dt><dd><span class="grad-text">{{ expected[r.id].strftime('%a, %d %b') }}</span> <span class="muted small">(estimate)</span></dd>{% endif %}
+    {% if r.paid_at %}<dt>Paid</dt><dd>{{ r.paid_at | ist }}</dd>{% endif %}
+    <dt>Reel</dt><dd><a href="{{ r.reel_url }}" target="_blank" rel="noopener">View reel ↗</a></dd>
+  </dl>
+</article>
+{% endfor %}
+
+{% if tickets %}
+<h2 class="section-title">Your questions</h2>
+{% for t in tickets %}
+<article class="card">
+  <div class="card-head">
+    <h3>Query #{{ t.id }}</h3>
+    <span class="badge badge-t-{{ t.status }}">{{ 'with team' if t.status == 'escalated' else t.status }}</span>
+  </div>
+  <p class="quote">{{ t.message }}</p>
+  <p>{{ t.ai_reply }}</p>
+  {% if t.team_reply %}<p class="note"><strong>From the Praabhaav team:</strong> {{ t.team_reply }}</p>{% endif %}
+</article>
+{% endfor %}
+{% endif %}
+<p class="footer-note">Something wrong? <a href="/query">Ask a question</a>.</p>
+{% endblock %}

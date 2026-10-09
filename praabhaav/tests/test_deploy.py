@@ -60,6 +60,7 @@ def test_digest_runs_once_per_day_after_0930_ist(tmp_path):
 def test_verify_runs_every_30_minutes(tmp_path):
     db = dbmod.Database(str(tmp_path / "s.db"))
     db.set_setting("last_digest_date", "2026-10-09")
+    db.set_setting("last_views_date", "2026-10-09")
     s = Scheduler(db, CountingFetcher(), FakeNotifier(), "")
     assert s.tick(utc(5, 0)) == ["verify"]
     assert s.tick(utc(5, 20)) == []
@@ -71,7 +72,7 @@ def test_healthz_and_backup(tmp_path):
                               notifier=FakeNotifier()))
     assert c.get("/healthz").json() == {"ok": True}
     c.post("/admin/campaigns", auth=ADMIN, data={"name": "Monsoon", "default_amount": 500})
-    assert c.get("/admin/backup").status_code == 401
+    assert c.get("/admin/backup", follow_redirects=False).status_code == 303
     r = c.get("/admin/backup", auth=ADMIN)
     assert r.status_code == 200
     backup = tmp_path / "restored.db"
@@ -85,3 +86,30 @@ def test_scheduler_starts_with_app_when_enabled(tmp_path, monkeypatch):
     app = create_app(str(tmp_path / "e.db"), agent=QueryAgent(client=None), notifier=notifier)
     with TestClient(app) as c:  # runs lifespan startup/shutdown
         assert c.get("/healthz").status_code == 200
+
+
+class ViewsFetcher:
+    def __init__(self):
+        self.urls = []
+
+    def fetch(self, urls):
+        self.urls += urls
+        return {"AbC": {"shortCode": "AbC", "videoPlayCount": 777}}
+
+
+def test_daily_views_refresh_for_active_campaigns_only(tmp_path):
+    db = dbmod.Database(str(tmp_path / "v.db"))
+    db.set_setting("last_digest_date", "2026-10-09")
+    live = db.create_campaign("Live", "", "", 0)
+    closed = db.create_campaign("Closed", "", "", 0)
+    db.set_campaign_active(closed, False)
+    db.add_roster_row(live, handle="riya", reel_url="https://www.instagram.com/reel/AbC/")
+    db.add_roster_row(closed, handle="aman", reel_url="https://www.instagram.com/reel/Old/")
+    fetcher = ViewsFetcher()
+    s = Scheduler(db, fetcher, FakeNotifier(), "")
+    s.last_verify = utc(2, 50)  # skip the reel-check job in this test
+    assert s.tick(utc(2, 59)) == []            # 08:29 IST
+    assert s.tick(utc(3, 0)) == ["views"]      # 08:30 IST
+    assert fetcher.urls == ["https://www.instagram.com/reel/AbC/"]
+    assert db.get_roster_row(1)["views"] == 777
+    assert "views" not in s.tick(utc(3, 10))  # once per day

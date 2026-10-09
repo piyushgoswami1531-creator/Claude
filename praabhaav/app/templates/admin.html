@@ -1,112 +1,75 @@
-{% extends "base.html" %}
-{% block title %}Admin · Praabhaav{% endblock %}
-{% block body_class %}admin{% endblock %}
+{% extends "admin_base.html" %}
+{% block title %}Submissions · Praabhaav{% endblock %}
 {% block content %}
-<div class="toolbar">
-  <h1>Payments tracker</h1>
-  {% set active = 'payments' %}{% include "_admin_nav.html" %}
-</div>
-{% if verifying %}
-<div class="alert alert-info">Checking pending reels now. Refresh in a minute to see results.</div>
-{% endif %}
-
-<section class="stats">
-  <div class="stat"><span class="stat-num">{{ stats.pending }}</span><span>Waiting for payment</span></div>
-  <div class="stat"><span class="stat-num">₹{{ stats.pending_amount | inr }}</span><span>Amount pending</span></div>
-  <div class="stat {% if stats.overdue %}stat-alert{% endif %}"><span class="stat-num">{{ stats.overdue }}</span><span>Overdue (&gt;48h)</span></div>
-  <div class="stat {% if stats.issues %}stat-alert{% endif %}"><span class="stat-num">{{ stats.issues }}</span><span>Issues</span></div>
-  <a class="stat {% if stats.open_tickets %}stat-alert{% endif %}" href="/admin/tickets"><span class="stat-num">{{ stats.open_tickets }}</span><span>Open queries</span></a>
-</section>
-
-<section class="card">
-  <h2>Campaigns</h2>
-  <table>
-    <thead><tr><th>Name</th><th>Song</th><th>Client</th><th>Default ₹</th><th>Audio check</th><th>Creator link</th><th></th></tr></thead>
-    <tbody>
-    {% for c in campaigns %}
-      <tr class="{% if not c.active %}inactive{% endif %}">
-        <td><a href="/admin?campaign={{ c.id }}">{{ c.name }}</a></td>
-        <td>{{ c.song }}</td>
-        <td>{{ c.client }}</td>
-        <td>{{ c.default_amount }}</td>
-        <td>{% if c.audio_id %}✓ audio link{% elif c.song %}by song name{% else %}<span class="muted">none</span>{% endif %}</td>
-        <td><code>{{ base_url }}/submit?campaign={{ c.id }}</code></td>
-        <td>
-          <form method="post" action="/admin/campaigns/{{ c.id }}/toggle">
-            <button class="small secondary">{{ 'Close' if c.active else 'Reopen' }}</button>
-          </form>
-        </td>
-      </tr>
+<div class="page-head">
+  <div><h1>Submissions</h1><p class="muted">Every reel creators have sent for payment.</p></div>
+  <div class="inline-form">
+    {% if verify_on %}
+    <form method="post" action="/admin/verify" data-busy><button class="small">✨ Check pending reels</button></form>
     {% else %}
-      <tr><td colspan="7" class="muted">No campaigns yet. Add one below.</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
+    <span class="muted small">Reel checks off (set APIFY_TOKEN)</span>
+    {% endif %}
+    <a class="button secondary small" href="/admin/backup">⬇ Backup</a>
+  </div>
+</div>
+{% if pin_reset %}<div class="alert alert-good" data-toast="PIN reset for @{{ pin_reset }}">PIN reset for <strong>@{{ pin_reset }}</strong>. Tell them to log in at My payments with their handle and WhatsApp number; they'll be asked to choose a new PIN.</div>{% endif %}
+{% if verifying %}<div class="alert alert-info">Checking pending reels now. Refresh in a minute to see results.</div>{% endif %}
 
-  <form method="post" action="/admin/campaigns" class="inline-form">
-    <input name="name" required placeholder="Campaign name">
-    <input name="song" placeholder="Song">
-    <input name="client" placeholder="Client (artist/label)">
-    <input name="default_amount" type="number" min="0" placeholder="Default ₹ per reel">
-    <input name="audio_link" placeholder="Instagram audio link (for reel checks)" class="grow">
-    <button>Add campaign</button>
-  </form>
-</section>
+{% include "_stats.html" %}
 
 <section class="card">
   <div class="toolbar">
-    <h2>Submissions</h2>
-    {% if verify_on %}
-    <form method="post" action="/admin/verify">
-      <button class="small secondary">Check pending reels now</button>
-    </form>
-    {% else %}
-    <span class="muted">Automatic reel checks are off (set APIFY_TOKEN)</span>
-    {% endif %}
-    <form method="get" action="/admin" class="inline-form">
-      {% if campaign_filter %}<input type="hidden" name="campaign" value="{{ campaign_filter }}">{% endif %}
-      <select name="status_filter" onchange="this.form.submit()">
-        <option value="">All statuses</option>
-        {% for s in statuses %}<option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>{% endfor %}
-      </select>
-      {% if campaign_filter %}<a href="/admin">Clear campaign filter</a>{% endif %}
-      <a class="button small secondary" href="/admin/backup">Download backup</a>
-      <a class="button small secondary" href="/admin/export.csv?{% if status_filter %}status_filter={{ status_filter }}&{% endif %}{% if campaign_filter %}campaign={{ campaign_filter }}{% endif %}">Export CSV</a>
-    </form>
+    <div class="left">
+      <div class="search"><input type="search" placeholder="Search creator, UPI, campaign…" data-search="#subs" aria-label="Search submissions"></div>
+      <form method="get" action="/admin" class="inline-form">
+        <select name="status_filter" onchange="this.form.submit()" aria-label="Filter by status">
+          <option value="">All statuses</option>
+          {% for s in statuses %}<option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}
+        </select>
+        <select name="campaign" onchange="this.form.submit()" aria-label="Filter by campaign">
+          <option value="">All campaigns</option>
+          {% for c in campaigns %}<option value="{{ c.id }}" {% if c.id == campaign_filter %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </form>
+    </div>
+    <a class="button secondary small" href="/admin/export.csv?{% if status_filter %}status_filter={{ status_filter }}&{% endif %}{% if campaign_filter %}campaign={{ campaign_filter }}{% endif %}">Export CSV</a>
   </div>
 
   <div class="table-wrap">
-  <table>
-    <thead><tr><th>#</th><th>Creator</th><th>Campaign</th><th>UPI</th><th>Reel check</th><th>Submitted</th><th>Update</th></tr></thead>
+  <table id="subs">
+    <thead><tr>
+      <th data-sort="text">Creator</th><th data-sort="text">Campaign</th><th>UPI</th>
+      <th data-sort="text">Reel check</th><th data-sort="num">Submitted</th><th>Update</th>
+    </tr></thead>
     <tbody>
     {% for s in submissions %}
       <tr class="{% if is_overdue(s) %}overdue{% endif %}">
-        <td>{{ s.id }}</td>
-        <td>@{{ s.ig_handle }}<br><span class="muted">{{ s.whatsapp }}</span></td>
+        <td><div class="who-cell"><span class="avatar">{{ s.ig_handle[:1] | upper }}</span><div><a class="handle" href="https://www.instagram.com/{{ s.ig_handle }}/" target="_blank" rel="noopener">@{{ s.ig_handle }}</a><div class="faint small">{{ s.whatsapp }}</div>
+          <form method="post" action="/admin/submissions/{{ s.id }}/reset-pin" data-confirm="Reset @{{ s.ig_handle }}'s PIN? They'll choose a new one at next login."><button class="ghost small" style="padding:2px 0">Reset PIN</button></form></div></div></td>
         <td>{{ s.campaign_name }}</td>
         <td><code>{{ s.upi_id }}</code></td>
-        <td class="reel-check">
-          <a href="{{ s.reel_url }}" target="_blank" rel="noopener">Open</a>
+        <td class="reel-check" data-sort-value="{{ s.verify_status }}">
+          <a href="{{ s.reel_url }}" target="_blank" rel="noopener">Open ↗</a>
           {% if s.verify_status != 'unchecked' %}<span class="badge badge-v-{{ s.verify_status }}">{{ s.verify_status }}</span>{% endif %}
-          {% if s.verify_notes %}<br><span class="verify-notes">{{ s.verify_notes }}</span>{% endif %}
-          {% if s.views is not none %}<br><span class="muted">{{ s.views | inr }} views · {{ s.likes or 0 | inr }} likes</span>{% endif %}
+          {% if s.verify_notes %}<div class="verify-notes">{{ s.verify_notes }}</div>{% endif %}
+          {% if s.views is not none %}<div class="faint small num">{{ s.views | compact }} views · {{ s.likes | compact }} likes</div>{% endif %}
         </td>
-        <td>{{ s.submitted_at | ist }}{% if is_overdue(s) %}<br><span class="badge badge-issue">overdue</span>{% endif %}</td>
+        <td class="nowrap" data-sort-value="{{ s.submitted_at }}">{{ s.submitted_at | ist }}{% if is_overdue(s) %}<br><span class="badge badge-overdue">overdue</span>{% endif %}</td>
         <td>
           <form method="post" action="/admin/submissions/{{ s.id }}" class="row-form">
             <input type="hidden" name="next_url" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
-            <select name="new_status">
-              {% for st in statuses %}<option value="{{ st }}" {% if st == s.status %}selected{% endif %}>{{ st }}</option>{% endfor %}
+            <select name="new_status" aria-label="Status">
+              {% for st in statuses %}<option value="{{ st }}" {% if st == s.status %}selected{% endif %}>{{ st|capitalize }}</option>{% endfor %}
             </select>
-            <input name="amount" type="number" min="0" value="{{ s.amount }}" aria-label="Amount">
-            <input name="note" value="{{ s.note }}" placeholder="Note shown to creator">
+            <input name="amount" type="number" min="0" value="{{ s.amount }}" aria-label="Amount ₹">
+            <input name="note" value="{{ s.note }}" placeholder="Note to creator" aria-label="Note to creator">
             <input name="upi_id" placeholder="New UPI ID" autocapitalize="off" aria-label="New UPI ID">
             <button class="small">Save</button>
           </form>
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="7" class="muted">No submissions.</td></tr>
+      <tr><td colspan="6" class="empty">No submissions yet. Share a campaign's submit link with creators.</td></tr>
     {% endfor %}
     </tbody>
   </table>

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}My payments · Praabhaav{% endblock %}
+{% block content %}
+<section class="card glow">
+  {% if set_pin %}
+  <h1>Create your PIN 🔐</h1>
+  <p class="muted">Welcome back! Choose a 4–6 digit PIN. You'll use it every time you log in, so only you can see your payments.</p>
+  <form method="post" action="/me/login" class="form">
+    <input type="hidden" name="ig_handle" value="{{ values.ig_handle }}">
+    <input type="hidden" name="whatsapp" value="{{ values.whatsapp }}">
+    <div class="row2">
+      <label>New PIN<input name="pin" type="password" class="pin-input" required inputmode="numeric" pattern="\d{4,6}" maxlength="6" autocomplete="new-password" autofocus></label>
+      <label>Confirm PIN<input name="pin_confirm" type="password" class="pin-input" required inputmode="numeric" pattern="\d{4,6}" maxlength="6" autocomplete="new-password"></label>
+    </div>
+    <button type="submit" class="block">Save PIN &amp; continue</button>
+  </form>
+  {% else %}
+  <h1>My payments 💸</h1>
+  <p class="muted">Log in to see your reels, payment status and expected payment dates.</p>
+  <form method="post" action="/me/login" class="form">
+    <label>Instagram handle
+      <input name="ig_handle" required placeholder="@yourhandle" value="{{ values.ig_handle or '' }}" autocapitalize="off" autocomplete="username">
+    </label>
+    <label>WhatsApp number <span class="hint">The one you submitted your reel with.</span>
+      <input name="whatsapp" required inputmode="tel" placeholder="98765 43210" value="{{ values.whatsapp or '' }}">
+    </label>
+    <label>PIN <span class="hint">Submitted before PINs existed? Enter any digits and you'll be asked to create one.</span>
+      <input name="pin" type="password" class="pin-input" required inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="current-password">
+    </label>
+    <button type="submit" class="block">Log in</button>
+  </form>
+  <p class="muted small" style="margin-top:14px">Forgot your PIN? <a href="/query">Ask the team</a> to reset it.</p>
+  {% endif %}
+</section>
+{% endblock %}
