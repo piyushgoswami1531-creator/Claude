@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Submitted · Praabhaav{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Got it, @{{ ig_handle }} ✅</h1>
+  <p>Your reel for <strong>{{ campaign.name }}</strong> is submitted. We'll verify it and add your payment to the queue.</p>
+  <p>Track it anytime on the <a href="/status">payment status</a> page, using your Instagram handle and WhatsApp number.</p>
+</section>
+{% endblock %}

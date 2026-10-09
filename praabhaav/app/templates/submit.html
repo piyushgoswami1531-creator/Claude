@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Submit your reel · Praabhaav{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Submit your reel</h1>
+  <p class="muted">Fill this once your reel is live. We pay to the UPI ID you enter here.</p>
+
+  {% if not campaigns %}
+    <p>No campaigns are open right now. Please check back with the Praabhaav team.</p>
+  {% else %}
+  <form method="post" action="/submit" class="form">
+    <label>Campaign
+      <select name="campaign_id" required>
+        <option value="">Choose campaign…</option>
+        {% for c in campaigns %}
+        <option value="{{ c.id }}" {% if values.campaign_id == c.id %}selected{% endif %}>
+          {{ c.name }}{% if c.song %} · {{ c.song }}{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Instagram handle
+      <input name="ig_handle" required placeholder="@yourhandle" value="{{ values.ig_handle or '' }}" autocapitalize="off">
+    </label>
+
+    <label>WhatsApp number
+      <input name="whatsapp" required inputmode="tel" placeholder="98765 43210" value="{{ values.whatsapp or '' }}">
+    </label>
+
+    <label>Reel link
+      <input name="reel_url" required type="url" placeholder="https://www.instagram.com/reel/…" value="{{ values.reel_url or '' }}">
+    </label>
+
+    <label>UPI ID
+      <input name="upi_id" required placeholder="name@okaxis" value="{{ values.upi_id or '' }}" autocapitalize="off">
+    </label>
+
+    <label>Confirm UPI ID
+      <input name="upi_confirm" required placeholder="Type it again" value="{{ values.upi_confirm or '' }}" autocapitalize="off" autocomplete="off">
+    </label>
+
+    <button type="submit">Submit</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}
