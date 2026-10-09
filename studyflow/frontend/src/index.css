@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ---- Design tokens: "ink & paper" ------------------------------------------ */
+:root {
+  color-scheme: light;
+  --paper: #f5f1e8;
+  --surface: #fffdf8;
+  --surface-2: #efe9dc;
+  --ink: #16161d;
+  --ink-2: #4b4a51;
+  --ink-3: #7c7a80;
+  --line: #e2dbcc;
+  --accent: #d4ff3a; /* lime: always used as a fill with ink text */
+  --accent-ink: #16161d;
+  --good: #0ca30c;
+  --warn: #c98500;
+  --bad: #d03b3b;
+
+  /* Subject identity (categorical, fixed order - validated palette) */
+  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100;
+  --c5: #e87ba4; --c6: #008300; --c7: #4a3aa7; --c8: #e34948;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0e0f13;
+  --surface: #17181d;
+  --surface-2: #212228;
+  --ink: #f3f0e8;
+  --ink-2: #b9b6ae;
+  --ink-3: #85837d;
+  --line: #2b2c33;
+  --accent: #d4ff3a;
+  --accent-ink: #16161d;
+  --good: #3bc43b;
+  --warn: #fab219;
+  --bad: #e66767;
+
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500;
+  --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+}
+
+/* No explicit choice (e.g. the Claude app on "system"): follow the OS setting. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #0e0f13;
+    --surface: #17181d;
+    --surface-2: #212228;
+    --ink: #f3f0e8;
+    --ink-2: #b9b6ae;
+    --ink-3: #85837d;
+    --line: #2b2c33;
+    --accent: #d4ff3a;
+    --accent-ink: #16161d;
+    --good: #3bc43b;
+    --warn: #fab219;
+    --bad: #e66767;
+
+    --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500;
+    --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+  }
+}
+
+@theme {
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+}
+
+html,
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Subtle paper grain so the background isn't a flat template grey. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.35;
+  background-image: radial-gradient(color-mix(in oklab, var(--ink) 7%, transparent) 0.6px, transparent 0.6px);
+  background-size: 14px 14px;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+input[type="range"] {
+  accent-color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

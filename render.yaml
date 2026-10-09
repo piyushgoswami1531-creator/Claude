@@ -1,0 +1,35 @@
+# Render Blueprint for StudyFlow: one web service + one Postgres database.
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repo. You'll be asked for ANTHROPIC_API_KEY.
+services:
+  - type: web
+    name: studyflow
+    runtime: docker
+    plan: free
+    dockerfilePath: ./studyflow/Dockerfile
+    dockerContext: ./studyflow
+    healthCheckPath: /api/health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - studyflow/**
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: studyflow-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-opus-5-5
+      - key: DAILY_AI_LIMIT
+        value: "15"
+
+databases:
+  - name: studyflow-db
+    plan: free
+    databaseName: studyflow
+    user: studyflow
