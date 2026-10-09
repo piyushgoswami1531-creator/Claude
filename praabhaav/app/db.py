@@ -1,12 +1,15 @@
-"""SQLite storage for campaigns and creator submissions.
+"""Storage for campaigns, submissions, tickets, logins and the campaign tracker.
 
-This is the single source of truth for payments. The query agent, reel
-verification and payment planner all read and write through this module.
+This is the single source of truth. Every other module reads and writes through
+`Database`, which runs on SQLite (a local file) or Postgres (e.g. Neon's free
+plan) depending on the target it's given; see `storage.py`.
 """
 
+import os
 import sqlite3
-from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+
+from .storage import INTEGRITY_ERRORS, copy_rows, make_engine
 
 STATUSES = ("submitted", "approved", "scheduled", "paid", "issue")
 # Statuses where the creator is still waiting for money.
@@ -187,26 +190,50 @@ def to_iso(dt: datetime) -> str:
     return dt.isoformat(timespec="seconds")
 
 
+# Every table, parents before children (the order backups and copies use).
+TABLES = ["campaigns", "submissions", "tickets", "settings", "hosts", "creator_accounts",
+          "login_failures", "roster", "view_snapshots"]
+
+
+def database_target_from_env() -> str:
+    """DATABASE_URL (Postgres, e.g. Neon) wins; otherwise the SQLite file PRAABHAAV_DB."""
+    return os.environ.get("DATABASE_URL") or os.environ.get("PRAABHAAV_DB", "praabhaav.db")
+
+
 class Database:
-    def __init__(self, path: str):
-        self.path = path
+    def __init__(self, target: str, schema: str | None = None):
+        """``target`` is a SQLite file path or a postgres:// URL.
+        ``schema`` (Postgres only) isolates data, e.g. one schema per test."""
+        self.path = target
+        self.engine = make_engine(target, schema)
+        self.kind = self.engine.kind
         with self.connect() as conn:
             conn.executescript(SCHEMA)
+            existing_by_table: dict[str, set[str]] = {}
             for table, column, ddl in MIGRATIONS:
-                existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+                existing = existing_by_table.setdefault(table, conn.columns(table))
                 if column not in existing:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+                    existing.add(column)
 
-    @contextmanager
     def connect(self):
-        conn = sqlite3.connect(self.path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        try:
-            yield conn
-            conn.commit()
-        finally:
-            conn.close()
+        """Context manager yielding a connection; commits on success."""
+        return self.engine.connect()
+
+    def close(self) -> None:
+        self.engine.close()
+
+    def is_empty(self) -> bool:
+        with self.connect() as conn:
+            return not any(conn.execute(f"SELECT 1 FROM {t} LIMIT 1").fetchone()
+                           for t in ("campaigns", "submissions", "roster", "hosts"))
+
+    def copy_into(self, other: "Database") -> dict[str, int]:
+        """Copy every row into an empty database (backup, restore, move to Neon)."""
+        if not other.is_empty():
+            raise ValueError("The destination database already has data; refusing to merge.")
+        with self.connect() as src, other.connect() as dst:
+            return copy_rows(src, dst, other.kind, TABLES)
 
     # --- campaigns ---------------------------------------------------------
 
@@ -214,12 +241,11 @@ class Database:
         self, name: str, song: str, client: str, default_amount: int, audio_id: str = ""
     ) -> int:
         with self.connect() as conn:
-            cur = conn.execute(
+            return conn.insert(
                 "INSERT INTO campaigns (name, song, client, default_amount, audio_id, created_at)"
                 " VALUES (?, ?, ?, ?, ?, ?)",
                 (name, song, client, default_amount, audio_id, to_iso(now_utc())),
             )
-            return cur.lastrowid
 
     def list_campaigns(self, active_only: bool = False) -> list[sqlite3.Row]:
         sql = "SELECT * FROM campaigns"
@@ -263,15 +289,14 @@ class Database:
         ts = to_iso(now_utc())
         try:
             with self.connect() as conn:
-                cur = conn.execute(
+                return conn.insert(
                     "INSERT INTO submissions (campaign_id, ig_handle, whatsapp, upi_id,"
                     " reel_url, amount, submitted_at, updated_at)"
                     " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     (campaign_id, ig_handle, whatsapp, upi_id, reel_url,
                      campaign["default_amount"], ts, ts),
                 )
-                return cur.lastrowid
-        except sqlite3.IntegrityError as exc:
+        except INTEGRITY_ERRORS as exc:
             raise DuplicateSubmission() from exc
 
     def get_submission(self, submission_id: int) -> sqlite3.Row | None:
@@ -409,14 +434,19 @@ class Database:
         self.set_setting("daily_limit", str(amount))
 
     def backup_to(self, path: str) -> None:
-        """Consistent copy of the live database (safe while the app is running)."""
-        src = sqlite3.connect(self.path)
-        dst = sqlite3.connect(path)
-        try:
-            src.backup(dst)
-        finally:
-            dst.close()
-            src.close()
+        """Consistent SQLite copy of the live database (safe while the app is running).
+        From Postgres the rows are copied into a fresh SQLite file, so a backup is
+        always a single .db file that opens anywhere."""
+        if self.kind == "sqlite":
+            src = sqlite3.connect(self.path)
+            dst = sqlite3.connect(path)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+                src.close()
+            return
+        self.copy_into(Database(path))
 
     def payout_queue(self) -> list[sqlite3.Row]:
         """Approved/scheduled payments, oldest submission first."""
@@ -454,11 +484,10 @@ class Database:
 
     def add_host(self, username: str, name: str, pw_hash: str) -> int:
         with self.connect() as conn:
-            cur = conn.execute(
+            return conn.insert(
                 "INSERT INTO hosts (username, name, pw_hash, created_at) VALUES (?, ?, ?, ?)",
                 (username, name, pw_hash, to_iso(now_utc())),
             )
-            return cur.lastrowid
 
     def get_host(self, username: str) -> sqlite3.Row | None:
         with self.connect() as conn:
@@ -533,11 +562,10 @@ class Database:
         ts = to_iso(now_utc())
         cols = ["campaign_id", *fields, "created_at", "updated_at"]
         with self.connect() as conn:
-            cur = conn.execute(
+            return conn.insert(
                 f"INSERT INTO roster ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
                 (campaign_id, *fields.values(), ts, ts),
             )
-            return cur.lastrowid
 
     def get_roster_row(self, row_id: int) -> sqlite3.Row | None:
         with self.connect() as conn:
@@ -607,7 +635,7 @@ class Database:
     ) -> int:
         ts = to_iso(now_utc())
         with self.connect() as conn:
-            cur = conn.execute(
+            return conn.insert(
                 "INSERT INTO tickets (access_token, role, name, contact, campaign_id, message,"
                 " category, priority, ai_reply, team_summary, handled_by, status,"
                 " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -615,7 +643,6 @@ class Database:
                  ai_reply, team_summary, handled_by,
                  "escalated" if escalated else "answered", ts, ts),
             )
-            return cur.lastrowid
 
     def get_ticket(self, ticket_id: int) -> sqlite3.Row | None:
         with self.connect() as conn:
@@ -664,7 +691,7 @@ class Database:
         with self.connect() as conn:
             row = conn.execute(
                 f"SELECT COUNT(*) AS pending, COALESCE(SUM(amount), 0) AS pending_amount,"
-                f" COALESCE(SUM(submitted_at < ?), 0) AS overdue"
+                f" COALESCE(SUM(CASE WHEN submitted_at < ? THEN 1 ELSE 0 END), 0) AS overdue"
                 f" FROM submissions WHERE status IN ({placeholders})",
                 (cutoff, *OPEN_STATUSES),
             ).fetchone()

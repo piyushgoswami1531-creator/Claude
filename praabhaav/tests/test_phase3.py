@@ -255,6 +255,7 @@ def test_campaign_audio_link(app_env):
     assert validation.clean_audio("987") == "987"
 
 
+@pytest.mark.sqlite_only
 def test_old_database_is_upgraded(tmp_path):
     path = str(tmp_path / "old.db")
     conn = sqlite3.connect(path)

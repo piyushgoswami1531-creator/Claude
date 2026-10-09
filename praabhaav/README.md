@@ -87,7 +87,11 @@ The app replaces the per-campaign Google Sheets and the "where's my payment?" Wh
 
 ## Deploy
 
-See **[DEPLOY.md](DEPLOY.md)**: Render (Singapore) with a persistent disk, about $7.25/month.
+See **[DEPLOY.md](DEPLOY.md)**: **free** hosting on Render with a free Neon Postgres database and cron-job.org (no card needed), with a 2-minute upgrade path to an always-on paid instance.
+
+- **Data:** set `DATABASE_URL` to a Postgres URL (e.g. Neon) and the app uses Postgres; otherwise it uses the SQLite file `PRAABHAAV_DB`. Both are tested: the full suite runs on either (`TEST_DATABASE_URL=postgresql://… python -m pytest`).
+- **Scheduled jobs:** `ENABLE_SCHEDULER=1` runs them inside the app (always-on hosting); on free hosting cron-job.org calls `/cron/run?key=CRON_SECRET` every 30 minutes so the database can sleep in between.
+- **Moving data:** `python -m app.copydb SOURCE DEST` copies everything between SQLite files and Postgres (e.g. a downloaded backup into Neon).
 
 ## Run it locally
 
@@ -124,11 +128,13 @@ app/
   routes_admin.py    host login, team, submissions, payouts, queries, exports, backup
   routes_tracker.py  campaigns + per-campaign tracker pages and their JSON API
   tracker.py         tracker parsing, totals, CSV import/export, Apify refresh jobs
-  db.py              SQLite schema, migrations and queries
+  db.py              schema, migrations and queries (portable SQL)
+  storage.py         SQLite / Postgres engines, connection pooling, database copying
+  copydb.py          `python -m app.copydb SOURCE DEST`
   agent.py           query agent: Claude call, fallback rules, escalation policy
   reels.py           Apify client + automatic reel checks
   planner.py         payout planner (daily UPI limit, oldest-first)
-  scheduler.py       in-app jobs: reel checks, daily views, daily summary
+  scheduler.py       jobs: reel checks, daily views, daily summary (in-app loop or /cron/run)
   notify.py, digest.py   Telegram alerts and the daily summary
   validation.py      phone, UPI, handle, reel link, PIN validation
   knowledge/faq.md   what the agent may tell people (edit this)

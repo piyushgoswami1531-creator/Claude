@@ -63,6 +63,7 @@ class Ctx:
     fetcher: object | None
     signer: auth.SessionSigner
     jobs: Jobs = field(default_factory=Jobs)
+    scheduler: object = None  # set by create_app; drives the in-app loop and /cron/run
     templates: Jinja2Templates = None
 
     def __post_init__(self):

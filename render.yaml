@@ -1,30 +1,33 @@
-# Render Blueprint for the Praabhaav app in praabhaav/.
-# Deploy guide: praabhaav/DEPLOY.md
+# Render Blueprint for the Praabhaav app in praabhaav/: FREE setup.
+#   - Render free web service (sleeps after 15 min idle; kept awake by cron-job.org)
+#   - Data in a free Neon Postgres database (DATABASE_URL), not on Render's disk
+#   - Scheduled jobs triggered by cron-job.org calling /cron/run?key=CRON_SECRET
+# Step-by-step guide: praabhaav/DEPLOY.md. Paid version: praabhaav/deploy/render.paid.yaml
 services:
   - type: web
     name: praabhaav
     runtime: docker
     dockerfilePath: ./praabhaav/Dockerfile
     dockerContext: ./praabhaav
-    plan: starter            # disks need a paid instance; free instances lose data on restart
-    region: singapore        # closest Render region to India
+    plan: free
+    region: singapore        # closest Render region to India; pick Neon's Singapore region too
     healthCheckPath: /healthz
-    disk:
-      name: data
-      mountPath: /data
-      sizeGB: 1
     envVars:
-      - key: PRAABHAAV_DB
-        value: /data/praabhaav.db
-      - key: ENABLE_SCHEDULER
+      - key: DATABASE_URL         # Neon connection string (asked for at setup)
+        sync: false
+      - key: REQUIRE_DATABASE_URL # refuse to start on the temporary disk without it
         value: "1"
+      - key: ENABLE_SCHEDULER     # jobs come from cron-job.org instead (lets Neon sleep)
+        value: "0"
+      - key: CRON_SECRET          # the key in the cron-job.org URL
+        generateValue: true
       - key: ADMIN_USER
         value: admin
       - key: ADMIN_PASSWORD
         generateValue: true
-      - key: SECRET_KEY          # signs login sessions
+      - key: SECRET_KEY           # signs login sessions
         generateValue: true
-      # Asked for when the Blueprint is created; leave any blank to switch that feature off.
+      # Optional; leave blank to switch that feature off.
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: TELEGRAM_BOT_TOKEN

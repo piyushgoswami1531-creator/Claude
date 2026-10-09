@@ -4,10 +4,9 @@ Schedule it once a day, e.g. with cron at 9:30 IST:
     30 9 * * *  cd /path/to/praabhaav && python -m app.digest
 """
 
-import os
 from datetime import datetime
 
-from .db import IST, Database, inr, now_utc
+from .db import IST, Database, database_target_from_env, inr, now_utc
 from .planner import current_plan, today_ist
 from .notify import Notifier, configured_base_url
 
@@ -39,7 +38,7 @@ def build_digest(db: Database, base_url: str) -> str:
 
 
 def main() -> None:
-    db = Database(os.environ.get("PRAABHAAV_DB", "praabhaav.db"))
+    db = Database(database_target_from_env())
     base_url = configured_base_url() or "http://localhost:8000"
     text = build_digest(db, base_url)
     if not Notifier.from_env().send(text):

@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
-from .db import Database
+from .db import Database, database_target_from_env
 from .notify import Notifier
 
 log = logging.getLogger(__name__)
@@ -189,7 +189,7 @@ def main() -> None:
     fetcher = ApifyReelFetcher.from_env()
     if fetcher is None:
         raise SystemExit("Set APIFY_TOKEN to verify reels.")
-    db = Database(os.environ.get("PRAABHAAV_DB", "praabhaav.db"))
+    db = Database(database_target_from_env())
     print(verify_pending(db, fetcher, Notifier.from_env()))
 
 

@@ -16,8 +16,11 @@ def register(app: FastAPI, ctx: Ctx) -> None:
     db = ctx.db
 
     @app.get("/healthz")
-    def healthz():
-        db.get_setting("daily_limit")  # fails loudly if the database is unreachable
+    def healthz(deep: int = 0):
+        # Plain health checks (Render's, keep-awake pings) don't touch the database,
+        # so a scale-to-zero database like Neon can sleep. ?deep=1 checks it too.
+        if deep:
+            db.get_setting("daily_limit")
         return {"ok": True}
 
     @app.get("/")

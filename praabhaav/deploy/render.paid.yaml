@@ -1,0 +1,35 @@
+# PAID setup (always-on Starter instance + 1 GB disk, ~$7.25/month). Reference copy:
+# to switch, replace the repo-root render.yaml with this file. See DEPLOY.md.
+services:
+  - type: web
+    name: praabhaav
+    runtime: docker
+    dockerfilePath: ./praabhaav/Dockerfile
+    dockerContext: ./praabhaav
+    plan: starter            # disks need a paid instance; free instances lose data on restart
+    region: singapore        # closest Render region to India
+    healthCheckPath: /healthz
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: PRAABHAAV_DB
+        value: /data/praabhaav.db
+      - key: ENABLE_SCHEDULER
+        value: "1"
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: SECRET_KEY          # signs login sessions
+        generateValue: true
+      # Asked for when the Blueprint is created; leave any blank to switch that feature off.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: APIFY_TOKEN
+        sync: false
