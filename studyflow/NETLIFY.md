@@ -43,6 +43,11 @@ Sites dropped without an account are **deleted after about an hour**. To keep yo
 
 ---
 
+## Option A2: One single HTML file
+
+`npm run build:single` (in `frontend/`) produces **`dist-single/studyflow.html`**: the whole app in one file.
+Upload it anywhere that serves files (Netlify Drop inside a folder, GitHub Pages, Google Drive hosting, a college web server), or just open it from your phone or laptop. It saves data and works without internet when opened as a local file. The trade-off: no "Install app" and no offline cache when hosted, because those need the separate files in the folder version above.
+
 ## Option B: Deploy from Git (auto-updates on every push)
 
 The repo includes `studyflow/netlify.toml`, so Netlify knows how to build it.

@@ -9,7 +9,8 @@
     "typecheck": "tsc -b",
     "preview": "vite preview",
     "build:artifact": "tsc -b && vite build --mode artifact && node scripts/to-artifact.mjs",
-    "build:netlify": "tsc -b && vite build --mode standalone && node scripts/netlify-extras.mjs"
+    "build:netlify": "tsc -b && vite build --mode standalone && node scripts/netlify-extras.mjs",
+    "build:single": "tsc -b && vite build --mode single && node -e \"require('fs').renameSync('dist-single/single.html','dist-single/studyflow.html')\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",

@@ -1,7 +1,7 @@
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, MemoryRouter } from "react-router";
+import { BrowserRouter, HashRouter, MemoryRouter } from "react-router";
 import App from "./App";
 import { ToastProvider } from "./components/ui";
 import { ApiError } from "./lib/api";
@@ -28,7 +28,10 @@ const queryClient: QueryClient = new QueryClient({
 
 // Inside a claude.ai Artifact the page can't own the URL, so routes live in memory.
 function Router({ children }: { children: React.ReactNode }) {
-  return IS_ARTIFACT ? <MemoryRouter initialEntries={["/today"]}>{children}</MemoryRouter> : <BrowserRouter>{children}</BrowserRouter>;
+  if (IS_ARTIFACT) return <MemoryRouter initialEntries={["/today"]}>{children}</MemoryRouter>;
+  // The single-file build may be opened from disk or any host without rewrite rules: use #/routes.
+  if (import.meta.env.VITE_ROUTER === "hash") return <HashRouter>{children}</HashRouter>;
+  return <BrowserRouter>{children}</BrowserRouter>;
 }
 
 createRoot(document.getElementById("root")!).render(

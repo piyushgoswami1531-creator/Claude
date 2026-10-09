@@ -90,4 +90,16 @@ const standalone: UserConfig = {
   build: { outDir: "dist-netlify", emptyOutDir: true, rollupOptions: web.build!.rollupOptions },
 };
 
-export default defineConfig(({ mode }) => (mode === "artifact" ? artifact : mode === "standalone" ? standalone : web));
+// Single-file build (`vite build --mode single`): the standalone app in ONE html file
+// (hash routes, so it works on any host or opened straight from disk). No service worker.
+const single: UserConfig = {
+  plugins: [react(), tailwindcss(), viteSingleFile()],
+  define: {
+    "import.meta.env.VITE_TARGET": JSON.stringify("standalone"),
+    "import.meta.env.VITE_ROUTER": JSON.stringify("hash"),
+  },
+  resolve: { alias: [{ find: /^\.\/backend-select$/, replacement: src("local/backend-select.ts") }] },
+  build: { outDir: "dist-single", emptyOutDir: true, rollupOptions: { input: "single.html" } },
+};
+
+export default defineConfig(({ mode }) => (mode === "artifact" ? artifact : mode === "standalone" ? standalone : mode === "single" ? single : web));

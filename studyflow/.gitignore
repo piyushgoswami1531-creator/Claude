@@ -10,3 +10,4 @@ __pycache__/
 backend/.secret_key
 dist-artifact/
 dist-netlify/
+dist-single/
