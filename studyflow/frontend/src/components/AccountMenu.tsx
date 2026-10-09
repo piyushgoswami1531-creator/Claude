@@ -4,6 +4,7 @@ import { Download, LogOut, Share, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api, type Me } from "../lib/api";
+import { IS_ARTIFACT } from "../lib/env";
 import { useInstall } from "../lib/install";
 import { setSession } from "../lib/session";
 import { Button } from "./ui";
@@ -63,16 +64,18 @@ export function AccountMenu({ placement = "up" }: { placement?: "up" | "down" })
           >
             <div className="px-3 py-2">
               <p className="truncate font-semibold">{me.name}</p>
-              <p className="truncate text-xs text-ink-3">{me.email}</p>
+              <p className="truncate text-xs text-ink-3">
+                {IS_ARTIFACT ? (me.storage === "cloud" ? "Saved privately to your Claude account" : "Saved on this device only") : me.email}
+              </p>
             </div>
             <AiUsage me={me} />
             <div className="my-1 border-t border-line" />
-            {install.canPrompt && (
+            {!IS_ARTIFACT && install.canPrompt && (
               <MenuItem icon={<Download className="size-4" />} onClick={() => install.prompt().then(() => setOpen(false))}>
                 Install app
               </MenuItem>
             )}
-            {install.iosManual && (
+            {!IS_ARTIFACT && install.iosManual && (
               <MenuItem icon={<Share className="size-4" />} onClick={() => setIosHelp((v) => !v)}>
                 Add to Home Screen
               </MenuItem>
@@ -82,11 +85,13 @@ export function AccountMenu({ placement = "up" }: { placement?: "up" | "down" })
                 In Safari, tap the <b>Share</b> button, then <b>Add to Home Screen</b>.
               </p>
             )}
-            <MenuItem icon={<LogOut className="size-4" />} onClick={() => logout.mutate()}>
-              Log out
-            </MenuItem>
+            {!IS_ARTIFACT && (
+              <MenuItem icon={<LogOut className="size-4" />} onClick={() => logout.mutate()}>
+                Log out
+              </MenuItem>
+            )}
             <MenuItem icon={<Trash2 className="size-4" />} danger onClick={() => { setOpen(false); setConfirmDelete(true); }}>
-              Delete account
+              {IS_ARTIFACT ? "Erase my data" : "Delete account"}
             </MenuItem>
           </motion.div>
         )}
@@ -134,7 +139,14 @@ function DeleteDialog({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState("");
   const del = useMutation({
     mutationFn: () => api.deleteAccount(password),
-    onSuccess: () => setSession(qc, null),
+    onSuccess: () => {
+      if (IS_ARTIFACT) {
+        // No account to sign out of: drop the cached plan and start over at setup.
+        // resetQueries (unlike removeQueries) keeps mounted screens subscribed, so they reload into setup.
+        void qc.resetQueries({ predicate: (q) => q.queryKey[0] !== "me" });
+        onClose();
+      } else setSession(qc, null);
+    },
   });
   return (
     <motion.div className="fixed inset-0 z-[60] grid place-items-center bg-black/50 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
@@ -149,12 +161,12 @@ function DeleteDialog({ onClose }: { onClose: () => void }) {
         className="card w-full max-w-sm p-6"
       >
         <div className="flex items-start justify-between">
-          <h2 id="del-title" className="font-display text-3xl">Delete account?</h2>
+          <h2 id="del-title" className="font-display text-3xl">{IS_ARTIFACT ? "Erase your data?" : "Delete account?"}</h2>
           <button aria-label="Close" onClick={onClose} className="rounded-full p-1 text-ink-3 hover:text-ink">
             <X className="size-4" />
           </button>
         </div>
-        <p className="mt-2 text-sm text-ink-2">This permanently deletes your plans, quiz scores and reviews. It can't be undone.</p>
+        <p className="mt-2 text-sm text-ink-2">This permanently deletes your {IS_ARTIFACT ? "plan" : "plans"}, quiz scores and reviews. It can't be undone.</p>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -162,7 +174,7 @@ function DeleteDialog({ onClose }: { onClose: () => void }) {
           }}
           className="mt-4 space-y-3"
         >
-          <input
+          {!IS_ARTIFACT && <input
             type="password"
             autoComplete="current-password"
             placeholder="Your password"
@@ -171,11 +183,13 @@ function DeleteDialog({ onClose }: { onClose: () => void }) {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-xl border border-line bg-surface px-4 py-3 outline-none focus:border-ink"
             autoFocus
-          />
+          />}
           {del.error && <p className="text-sm text-bad">{del.error.message}</p>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button type="submit" loading={del.isPending} disabled={!password} className="!bg-bad !text-white">Delete forever</Button>
+            <Button type="submit" loading={del.isPending} disabled={!IS_ARTIFACT && !password} className="!bg-bad !text-white">
+              {IS_ARTIFACT ? "Erase everything" : "Delete forever"}
+            </Button>
           </div>
         </form>
       </motion.div>

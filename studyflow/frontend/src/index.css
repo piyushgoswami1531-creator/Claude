@@ -42,6 +42,28 @@
   --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
 }
 
+/* No explicit choice (e.g. the Claude app on "system"): follow the OS setting. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #0e0f13;
+    --surface: #17181d;
+    --surface-2: #212228;
+    --ink: #f3f0e8;
+    --ink-2: #b9b6ae;
+    --ink-3: #85837d;
+    --line: #2b2c33;
+    --accent: #d4ff3a;
+    --accent-ink: #16161d;
+    --good: #3bc43b;
+    --warn: #fab219;
+    --bad: #e66767;
+
+    --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500;
+    --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+  }
+}
+
 @theme {
   --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Instrument Serif", ui-serif, Georgia, serif;

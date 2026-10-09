@@ -102,13 +102,14 @@ export interface Me {
   email: string;
   name: string;
   ai: { mode: "live" | "demo"; limit: number | null; used_today: number };
+  /** Phone build only: where this viewer's data is kept. */
+  storage?: "cloud" | "device";
 }
 
-export class ApiError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-  }
-}
+import { ApiError } from "./errors";
+import { localApi } from "./backend-select";
+
+export { ApiError };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
@@ -135,7 +136,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 const json = (body: unknown) => JSON.stringify(body);
 
-export const api = {
+const httpApi = {
   me: () => request<Me>("/api/auth/me"),
   signup: (body: { name: string; email: string; password: string }) =>
     request<Me>("/api/auth/signup", { method: "POST", body: json(body) }),
@@ -172,3 +173,8 @@ export const api = {
   reviews: () => request<Review[]>("/api/reviews"),
   createReview: () => request<Review>("/api/reviews", { method: "POST" }),
 };
+
+export type Api = typeof httpApi;
+
+/** The web build talks to the FastAPI server; the phone (Artifact) build runs the same logic in the page. */
+export const api: Api = localApi ?? httpApi;

@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { NavLink } from "react-router";
 import { api } from "../lib/api";
 import { AccountMenu } from "./AccountMenu";
+import { IS_ARTIFACT } from "../lib/env";
 
 const NAV = [
   { to: "/today", label: "Today", icon: Sunrise },
@@ -27,6 +28,11 @@ function useTheme() {
 }
 
 export function ThemeToggle() {
+  // In the Claude app the viewer's own theme setting drives light/dark.
+  return IS_ARTIFACT ? null : <ThemeToggleButton />;
+}
+
+function ThemeToggleButton() {
   const [theme, toggle] = useTheme();
   return (
     <button
@@ -58,7 +64,7 @@ export function AiBadge() {
   const { data } = useQuery({ queryKey: ["health"], queryFn: api.health, staleTime: Infinity });
   if (!data) return null;
   return data.ai_mode === "live" ? null : (
-    <span title="No ANTHROPIC_API_KEY set: AI features use offline demo logic." className="inline-block rounded-full border border-warn/50 px-2.5 py-1 text-xs font-semibold text-warn">
+    <span title={IS_ARTIFACT ? "Claude isn't available here, so quizzes and reviews use offline demo logic." : "No ANTHROPIC_API_KEY set: AI features use offline demo logic."} className="inline-block rounded-full border border-warn/50 px-2.5 py-1 text-xs font-semibold text-warn">
       Demo AI
     </span>
   );
@@ -93,7 +99,7 @@ export function Layout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Mobile header */}
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-paper/85 px-4 py-3 backdrop-blur md:hidden">
+      <header className="sticky top-[env(safe-area-inset-top,0px)] z-30 flex items-center justify-between border-b border-line bg-paper/85 px-4 py-3 backdrop-blur md:hidden">
         <Logo />
         <div className="flex items-center gap-2">
           <ThemeToggle />

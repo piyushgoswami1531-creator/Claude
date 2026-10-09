@@ -6,6 +6,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { CountUp, ProgressRing } from "../components/ProgressRing";
 import { Button, Card, ErrorBox, Eyebrow } from "../components/ui";
 import { api, type Quiz } from "../lib/api";
+import { IS_ARTIFACT } from "../lib/env";
 
 const DIFF_STYLE = {
   easy: "bg-surface-2 text-ink-2",
@@ -62,7 +63,7 @@ function BackLink() {
 }
 
 function Generating() {
-  const lines = ["Searching the web for accurate sources…", "Checking definitions…", "Writing 4 easy, 4 medium, 2 hard…", "Making the wrong answers tempting…"];
+  const lines = [IS_ARTIFACT ? "Asking Claude about this topic…" : "Searching the web for accurate sources…", "Checking definitions…", "Writing 4 easy, 4 medium, 2 hard…", "Making the wrong answers tempting…"];
   const [i, setI] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setI((n) => (n + 1) % lines.length), 2200);
