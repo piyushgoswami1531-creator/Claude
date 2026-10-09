@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.name }} · Campaign report · Praabhaav{% endblock %}
+{% block head %}<meta name="robots" content="noindex, nofollow"><meta name="referrer" content="no-referrer">{% endblock %}
+{% block layout %}
+<header class="topbar report-bar">
+  <span class="brand"><span class="brand-mark">P</span><span>Praabhaav</span></span>
+  <div class="inline-form no-print">
+    <a class="button secondary small" href="/r/{{ token }}/report.csv">⬇ Download CSV</a>
+    <button type="button" class="small" data-print>🖨 Save as PDF</button>
+  </div>
+</header>
+<main class="public wide report">
+  <section class="report-hero">
+    <span class="eyebrow">Campaign report{% if campaign.client %} · prepared for {{ campaign.client }}{% endif %}</span>
+    <h1><span class="grad-text">{{ campaign.name }}</span></h1>
+    {% if campaign.song %}<p class="muted">🎵 {{ campaign.song }}</p>{% endif %}
+  </section>
+
+  <section class="report-headline card glow">
+    <span class="label">Total views</span>
+    <span class="hero-number num" data-count="{{ report.views }}" data-format="compact">{{ report.views | compact }}</span>
+    <span class="muted">across {{ report.live }} live reel{{ 's' if report.live != 1 }}{% if report.updated %} · updated {{ report.updated | ist }} IST{% endif %}</span>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><span class="label">Live reels</span><span class="value num" data-count="{{ report.live }}">{{ report.live }}</span><span class="sub">{{ report.creators }} creator{{ 's' if report.creators != 1 }} on the campaign</span></div>
+    <div class="stat"><span class="label">Likes</span><span class="value num" data-count="{{ report.likes }}" data-format="compact">{{ report.likes | compact }}</span></div>
+    <div class="stat"><span class="label">Comments</span><span class="value num" data-count="{{ report.comments }}" data-format="compact">{{ report.comments | compact }}</span></div>
+    <div class="stat"><span class="label">Follower reach</span><span class="value num" data-count="{{ report.reach }}" data-format="compact">{{ report.reach | compact }}</span><span class="sub">combined followers</span></div>
+    <div class="stat"><span class="label">Avg views per reel</span><span class="value num">{{ report.avg_views | compact if report.avg_views is not none else '–' }}</span></div>
+  </section>
+
+  {% include "_views_chart.html" %}
+
+  <section class="card">
+    <div class="card-head"><h2>Reels, ranked by views</h2><span class="muted small">{{ report.live }} live</span></div>
+    {% if report.reels %}
+    <ol class="rank-list">
+      {% for r in report.reels %}
+      <li>
+        <span class="rank num">{{ loop.index }}</span>
+        <div class="who-cell">
+          <span class="avatar">{{ r.handle[:1] | upper }}</span>
+          <div>
+            <a class="handle" href="{{ r.profile_url }}" target="_blank" rel="noopener noreferrer">@{{ r.handle }}</a>
+            <div class="faint small">{% if r.followers is not none %}{{ r.followers | compact }} followers{% endif %}</div>
+          </div>
+        </div>
+        <div class="bar-cell" title="{% if r.views is not none %}{{ '{:,}'.format(r.views) }} views{% endif %}">
+          {% if r.views is not none %}
+            <span class="value num">{{ r.views | compact }} views</span>
+            <div class="bar"><span style="width: {{ ((r.views / report.max_views) * 100) | round(1) if report.max_views else 0 }}%"></span></div>
+          {% else %}<span class="faint small">Views coming soon</span>{% endif %}
+        </div>
+        <span class="muted small num nowrap">{% if r.likes is not none %}♥ {{ r.likes | compact }}{% endif %}{% if r.comments is not none %} · 💬 {{ r.comments | compact }}{% endif %}</span>
+        <a class="button secondary small no-print" href="{{ r.reel_url }}" target="_blank" rel="noopener noreferrer">Watch ↗</a>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="empty">Reels are going live soon. This page updates automatically as they do.</p>
+    {% endif %}
+  </section>
+
+  <p class="footer-note">Live numbers from Instagram, refreshed daily. Prepared by Praabhaav.</p>
+</main>
+{% endblock %}

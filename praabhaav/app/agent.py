@@ -16,14 +16,13 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime
 from pathlib import Path
 
-from .db import is_overdue, now_utc
+from .db import IST, inr, is_overdue, now_utc
 
 log = logging.getLogger(__name__)
 
-IST = timezone(timedelta(hours=5, minutes=30))
 FAQ = (Path(__file__).resolve().parent / "knowledge" / "faq.md").read_text()
 MODEL = "claude-opus-5-5"
 
@@ -103,19 +102,22 @@ def _fmt_date(iso: str | None) -> str:
     return datetime.fromisoformat(iso).astimezone(IST).strftime("%d %b %Y")
 
 
-def describe_records(records) -> str:
+def describe_records(records, expected: dict[int, date] | None = None) -> str:
     """Render a creator's submissions as plain text for the model."""
+    expected = expected or {}
     if not records:
         return "No submissions found for this sender."
     lines = []
     for r in records:
         waited = (now_utc() - datetime.fromisoformat(r["submitted_at"])).days
         line = (
-            f"- Campaign '{r['campaign_name']}': amount ₹{r['amount']}, status '{r['status']}', "
+            f"- Campaign '{r['campaign_name']}': amount ₹{inr(r['amount'])}, status '{r['status']}', "
             f"submitted {_fmt_date(r['submitted_at'])} ({waited} days ago)"
         )
         if r["paid_at"]:
             line += f", paid {_fmt_date(r['paid_at'])}"
+        if r["id"] in expected:
+            line += f", expected payment date {expected[r['id']]:%d %b %Y} (estimate)"
         if is_overdue(r):
             line += ", OVERDUE (waiting more than 48 hours)"
         if r["note"]:
@@ -143,22 +145,27 @@ class QueryAgent:
     def uses_claude(self) -> bool:
         return self.client is not None
 
-    def handle(self, *, role: str, name: str, message: str, records, campaign_info: dict | None) -> Decision:
+    def handle(
+        self, *, role: str, name: str, message: str, records, campaign_info: dict | None,
+        expected: dict[int, date] | None = None,
+    ) -> Decision:
+        """``expected`` maps submission id -> planned payment date (from the planner)."""
+        expected = expected or {}
         decision = None
         if self.client is not None:
             try:
-                decision = self._ask_claude(role, name, message, records, campaign_info)
+                decision = self._ask_claude(role, name, message, records, campaign_info, expected)
             except Exception:
                 log.exception("Claude call failed; falling back to rules")
         if decision is None:
-            decision = self._rules(role, message, records)
+            decision = self._rules(role, message, records, expected)
         return apply_policy(decision, role, records)
 
     # --- Claude ------------------------------------------------------------
 
-    def _ask_claude(self, role, name, message, records, campaign_info) -> Decision:
+    def _ask_claude(self, role, name, message, records, campaign_info, expected) -> Decision:
         if role == "creator":
-            context = f"<records>\n{describe_records(records)}\n</records>"
+            context = f"<records>\n{describe_records(records, expected)}\n</records>"
         else:
             info = json.dumps(campaign_info) if campaign_info else "No campaign selected."
             context = f"<campaign_summary>\n{info}\n</campaign_summary>"
@@ -189,7 +196,7 @@ class QueryAgent:
 
     # --- fallback rules -----------------------------------------------------
 
-    def _rules(self, role, message, records) -> Decision:
+    def _rules(self, role, message, records, expected) -> Decision:
         text = message.lower()
         if role == "client":
             category = "client_request"
@@ -209,8 +216,9 @@ class QueryAgent:
 
         if category == "payment_status" and records:
             parts = [
-                f"{r['campaign_name']}: ₹{r['amount']}, status '{r['status']}'"
+                f"{r['campaign_name']}: ₹{inr(r['amount'])}, status '{r['status']}'"
                 + (f" (paid {_fmt_date(r['paid_at'])})" if r["paid_at"] else "")
+                + (f", expected by {expected[r['id']]:%d %b}" if r["id"] in expected else "")
                 for r in records
             ]
             return Decision(

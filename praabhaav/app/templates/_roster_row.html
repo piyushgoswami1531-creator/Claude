@@ -1,0 +1,27 @@
+<tr data-row-id="{{ r.id }}">
+  <td data-sort-value="{{ r.handle }}">
+    <div class="who-cell">
+      <span class="avatar">{{ r.handle[:1] | upper }}</span>
+      <div>
+        <input class="cell-input strong" data-field="handle" value="@{{ r.handle }}" aria-label="Creator handle" size="18">
+        <a class="faint small" href="{{ r.profile_url }}" target="_blank" rel="noopener">profile ↗</a>
+      </div>
+    </div>
+  </td>
+  <td data-sort-value="{{ r.followers or 0 }}"><input class="cell-input num" data-field="followers" value="{{ r.followers | compact if r.followers is not none else '' }}" placeholder="12.5K" aria-label="Followers" size="6"></td>
+  <td><div class="link-cell"><input class="cell-input" data-field="post_link" value="{{ r.post_link }}" placeholder="https://…" aria-label="Post link" size="14">{% if r.post_link %}<a href="{{ r.post_link }}" target="_blank" rel="noopener" aria-label="Open post">↗</a>{% endif %}</div></td>
+  <td data-sort-value="{{ r.price or 0 }}"><span class="faint">₹</span><input class="cell-input num" data-field="price" value="{{ r.price | inr if r.price is not none else '' }}" placeholder="1500" aria-label="Price per reel" size="6"></td>
+  <td><div class="link-cell"><input class="cell-input" data-field="reel_url" value="{{ r.reel_url }}" placeholder="https://www.instagram.com/reel/…" aria-label="Live reel link" size="14">{% if r.reel_url %}<a href="{{ r.reel_url }}" target="_blank" rel="noopener" aria-label="Open reel">↗</a>{% endif %}</div></td>
+  <td class="bar-cell" data-sort-value="{{ r.views or 0 }}" title="{% if r.views is not none %}{{ '{:,}'.format(r.views) }} views{% endif %}{% if r.stats_updated_at %} · updated {{ r.stats_updated_at | ist }}{% endif %}">
+    {% if r.views is not none %}
+      <span class="value num">{{ r.views | compact }}</span>
+      <div class="bar"><span style="width: {{ ((r.views / max_views) * 100) | round(1) if max_views else 0 }}%"></span></div>
+    {% elif r.stats_error %}<span class="verify-notes">{{ r.stats_error }}</span>
+    {% elif r.reel_url %}<span class="faint small">Not fetched yet</span>
+    {% else %}<span class="faint">–</span>{% endif %}
+  </td>
+  <td class="num" data-sort-value="{{ r.likes or 0 }}">{{ r.likes | compact }}</td>
+  <td class="num nowrap" data-sort-value="{{ cpm if cpm is not none else 999999 }}">{% if cpm is not none %}₹{{ '%.2f' | format(cpm) }}{% else %}<span class="faint">–</span>{% endif %}</td>
+  <td><input class="cell-input" data-field="notes" value="{{ r.notes }}" placeholder="Add note" aria-label="Notes" size="12"></td>
+  <td><button type="button" class="ghost small" data-delete-row aria-label="Delete @{{ r.handle }}">✕</button></td>
+</tr>

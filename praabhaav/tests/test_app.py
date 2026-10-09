@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app import db as dbmod
 from app import validation
 from app.main import create_app
+from tests.helpers import creator_page, submit_reel
 
 ADMIN = ("admin", "secret")
 REEL = "https://www.instagram.com/reel/Cabc123_-x/"
@@ -45,7 +46,7 @@ def submit(client, campaign_id=1, **overrides):
         "reel_url": REEL,
     }
     data.update(overrides)
-    return client.post("/submit", data=data)
+    return submit_reel(client, data)
 
 
 # --- validation -------------------------------------------------------------
@@ -80,7 +81,7 @@ def test_submit_and_check_status(client):
     assert r.status_code == 200
     assert "@creator.one" in r.text
 
-    r = client.post("/status", data={"ig_handle": "creator.one", "whatsapp": "9876543210"})
+    r = creator_page(client, "creator.one", "9876543210")
     assert r.status_code == 200
     assert "Song Launch" in r.text
     assert "₹500" in r.text
@@ -89,8 +90,8 @@ def test_submit_and_check_status(client):
 def test_status_needs_matching_phone(client):
     make_campaign(client)
     submit(client)
-    r = client.post("/status", data={"ig_handle": "creator.one", "whatsapp": "9999999999"})
-    assert "No submissions found" in r.text
+    r = creator_page(client, "creator.one", "9999999999")
+    assert "No reels found" in r.text
     assert "Song Launch" not in r.text
 
 
@@ -120,7 +121,8 @@ def test_closed_campaign_rejects_submissions(client):
 # --- admin --------------------------------------------------------------------
 
 def test_admin_requires_auth(client):
-    assert client.get("/admin").status_code == 401
+    r = client.get("/admin", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].startswith("/login")
     assert client.get("/admin", auth=("admin", "wrong")).status_code == 401
     assert client.get("/admin", auth=ADMIN).status_code == 200
 
@@ -128,7 +130,8 @@ def test_admin_requires_auth(client):
 def test_admin_disabled_without_password(tmp_path, monkeypatch):
     monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
     c = TestClient(create_app(str(tmp_path / "t.db")))
-    assert c.get("/admin", auth=ADMIN).status_code == 503
+    assert c.get("/admin", auth=ADMIN).status_code == 401
+    assert "No host accounts exist yet" in c.get("/login").text
 
 
 def test_mark_paid_updates_creator_view(client):
@@ -141,7 +144,7 @@ def test_mark_paid_updates_creator_view(client):
         follow_redirects=False,
     )
     assert r.status_code == 303
-    r = client.post("/status", data={"ig_handle": "creator.one", "whatsapp": "9876543210"})
+    r = creator_page(client, "creator.one", "9876543210")
     assert "Paid!" in r.text
     assert "₹750" in r.text
     assert "Sent via GPay" in r.text

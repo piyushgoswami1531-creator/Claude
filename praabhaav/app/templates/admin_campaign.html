@@ -1,0 +1,94 @@
+{% extends "admin_base.html" %}
+{% block title %}{{ campaign.name }} · Praabhaav{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a href="/admin/campaigns" class="small">← All campaigns</a>
+    <h1>{{ campaign.name }} {% if campaign.active %}<span class="badge badge-live">live</span>{% else %}<span class="badge">closed</span>{% endif %}</h1>
+    <p class="muted">{% if campaign.song %}🎵 {{ campaign.song }}{% endif %}{% if campaign.client %} · {{ campaign.client }}{% endif %}{% if campaign.audio_id %} · audio check on{% endif %}</p>
+  </div>
+  <div class="inline-form">
+    <button type="button" class="secondary small" data-copy="{{ submit_link }}">🔗 Copy creator submit link</button>
+    <form method="post" action="/admin/campaigns/{{ campaign.id }}/toggle"><button class="secondary small">{{ 'Close campaign' if campaign.active else 'Reopen' }}</button></form>
+  </div>
+</div>
+
+{% if imported %}<div class="alert alert-good" data-toast="Imported {{ imported }} creator{{ 's' if imported != '1' }}">Imported {{ imported }} row(s) from your sheet.</div>{% endif %}
+{% if import_problems %}<div class="alert alert-error"><strong>Some rows were skipped:</strong><ul>{% for p in import_problems %}<li>{{ p }}</li>{% endfor %}</ul></div>{% endif %}
+
+{% if report_saved %}<span hidden data-toast="{{ {'enable': 'Client report link created', 'regenerate': 'New link created. The old one no longer works', 'disable': 'Client report link turned off'}.get(report_saved, '') }}"></span>{% endif %}
+<section class="card report-panel">
+  <div class="card-head">
+    <div>
+      <h2>📣 Client report</h2>
+      <p class="muted small" style="margin:0">A live, read-only page for {{ campaign.client or 'the client' }}: views, likes, reach and every live reel. <strong>Prices, spend and creator contact details are never shown.</strong></p>
+    </div>
+  </div>
+  {% if report_link %}
+  <div class="inline-form">
+    <code class="grow" style="padding:10px 12px">{{ report_link }}</code>
+    <button type="button" class="small" data-copy="{{ report_link }}">Copy link</button>
+    <a class="button secondary small" href="{{ report_link }}" target="_blank" rel="noopener">Open ↗</a>
+    <form method="post" action="/admin/campaigns/{{ campaign.id }}/report" data-confirm="Create a new link? The current link will stop working for anyone who has it.">
+      <input type="hidden" name="action" value="regenerate"><button class="secondary small">New link</button>
+    </form>
+    <form method="post" action="/admin/campaigns/{{ campaign.id }}/report" data-confirm="Turn off the client report? The link will stop working.">
+      <input type="hidden" name="action" value="disable"><button class="ghost small">Turn off</button>
+    </form>
+  </div>
+  {% else %}
+  <form method="post" action="/admin/campaigns/{{ campaign.id }}/report">
+    <input type="hidden" name="action" value="enable"><button class="small">Create client report link</button>
+  </form>
+  {% endif %}
+</section>
+
+<section class="stats" id="roster-totals">{% include "_roster_totals.html" %}</section>
+
+<div id="views-chart">{% include "_views_chart.html" %}</div>
+
+<section class="card" id="tracker" data-campaign-id="{{ campaign.id }}" data-job-state="{{ job.state }}">
+  <div class="toolbar">
+    <div class="left">
+      <div class="search"><input type="search" placeholder="Search creators…" data-search="#roster" aria-label="Search creators"></div>
+    </div>
+    <div class="right">
+      <button type="button" class="small" data-refresh="views" {% if not apify_on %}disabled title="Set APIFY_TOKEN to fetch live views"{% endif %}>📈 Refresh live views</button>
+      <button type="button" class="secondary small" data-refresh="followers" {% if not apify_on %}disabled title="Set APIFY_TOKEN to fetch followers"{% endif %}>👥 Fetch followers</button>
+      <a class="button secondary small" href="/admin/campaigns/{{ campaign.id }}/export.csv">⬇ Export</a>
+    </div>
+  </div>
+  <div id="job-status" class="alert alert-info" {% if job.state != 'running' %}hidden{% endif %}><span class="spinner" style="display:inline-block;vertical-align:-2px;margin-right:8px"></span><span class="msg">Fetching from Instagram via Apify… this takes 20–60 seconds.</span></div>
+  {% if not apify_on %}<p class="muted small">Live views and followers need <code>APIFY_TOKEN</code> on the server. You can still fill everything in by hand.</p>{% endif %}
+
+  <form id="add-row" class="add-row" autocomplete="off">
+    <input name="profile_url" required placeholder="@handle or profile link" aria-label="Creator handle or profile link">
+    <input name="followers" placeholder="Followers (12.5K)" aria-label="Followers">
+    <input name="post_link" placeholder="Post link" aria-label="Post link">
+    <input name="price" placeholder="₹ per reel" aria-label="Price per reel">
+    <input name="reel_url" placeholder="Live reel link" aria-label="Live reel link">
+    <button type="submit" class="small">＋ Add creator</button>
+  </form>
+
+  <div class="table-wrap">
+  <table id="roster">
+    <thead><tr>
+      <th data-sort="text">Creator</th><th data-sort="num">Followers</th><th>Post link</th>
+      <th data-sort="num">Price</th><th>Live reel</th><th data-sort="num">Views</th>
+      <th data-sort="num">Likes</th><th data-sort="num" title="Cost per 1,000 views">₹ / 1K views</th><th>Notes</th><th></th>
+    </tr></thead>
+    <tbody>{% include "_roster_body.html" %}</tbody>
+  </table>
+  </div>
+  <p class="muted small" style="margin-top:12px">Click any cell to edit; changes save automatically. Followers accept 12.5K, 1.2M or 1.5L.</p>
+</section>
+
+<details class="card panel">
+  <summary>⬆ Import an existing sheet (CSV)</summary>
+  <p class="muted">In Google Sheets: <strong>File → Download → CSV</strong>. Columns are matched by name: creator/profile/handle, followers, post link, price/rate, live reel link, notes. View and like columns are skipped; the app fetches those itself.</p>
+  <form method="post" action="/admin/campaigns/{{ campaign.id }}/import" enctype="multipart/form-data" class="inline-form" data-busy>
+    <input type="file" name="file" accept=".csv,text/csv" required>
+    <button class="small">Import</button>
+  </form>
+</details>
+{% endblock %}

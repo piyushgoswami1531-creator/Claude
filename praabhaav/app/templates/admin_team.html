@@ -1,0 +1,52 @@
+{% extends "admin_base.html" %}
+{% block title %}Team · Praabhaav{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Team</h1><p class="muted">People who can log in to this host dashboard and see all data.</p></div></div>
+{% if saved %}<div class="alert alert-good" data-toast="{{ {'added': 'Team member added', 'removed': 'Team member removed', 'password': 'Password changed'}[saved] }}">Saved.</div>{% endif %}
+
+<section class="card">
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Username</th><th>Name</th><th>Role</th><th></th></tr></thead>
+    <tbody>
+      <tr><td><strong>{{ owner }}</strong></td><td class="muted">Set on the server</td><td><span class="badge badge-paid">owner</span></td><td></td></tr>
+      {% for h in hosts %}
+      <tr>
+        <td><strong>{{ h.username }}</strong>{% if h.username == me %} <span class="faint small">(you)</span>{% endif %}</td>
+        <td>{{ h.name }}</td>
+        <td><span class="badge badge-approved">host</span></td>
+        <td class="right">{% if is_owner %}
+          <form method="post" action="/admin/team/{{ h.username }}/delete" data-confirm="Remove {{ h.username }}? They lose access immediately."><button class="ghost small">Remove</button></form>
+        {% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+{% if is_owner %}
+<section class="card">
+  <h2>Add a team member</h2>
+  <form method="post" action="/admin/team" class="form">
+    <div class="row2">
+      <label>Username<input name="username" required pattern="[a-zA-Z0-9._\-]{3,30}" autocapitalize="off" placeholder="e.g. riya.ops"></label>
+      <label>Name<input name="name" placeholder="Riya Sharma"></label>
+    </div>
+    <label>Password <span class="hint">At least 10 characters. Share it privately; they can change it later.</span><input name="password" type="password" required minlength="10" autocomplete="new-password"></label>
+    <div><button>Add member</button></div>
+  </form>
+</section>
+{% else %}
+<section class="card">
+  <h2>Change your password</h2>
+  <form method="post" action="/admin/team/password" class="form">
+    <div class="row2">
+      <label>Current password<input name="current" type="password" required autocomplete="current-password"></label>
+      <label>New password<input name="new" type="password" required minlength="10" autocomplete="new-password"></label>
+    </div>
+    <div><button>Change password</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

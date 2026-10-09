@@ -12,6 +12,11 @@ import httpx
 log = logging.getLogger(__name__)
 
 
+def configured_base_url() -> str:
+    """Public URL for links in alerts. Render sets RENDER_EXTERNAL_URL automatically."""
+    return (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("RENDER_EXTERNAL_URL") or "").rstrip("/")
+
+
 class Notifier:
     def __init__(self, bot_token: str | None = None, chat_id: str | None = None):
         self.bot_token = bot_token

@@ -1,0 +1,5 @@
+<div class="stat"><span class="label">Creators</span><span class="value num" data-count="{{ totals.creators }}">{{ totals.creators }}</span><span class="sub">{{ totals.live }} reel{{ 's' if totals.live != 1 }} live</span></div>
+<div class="stat"><span class="label">Total views</span><span class="value num" data-count="{{ totals.views }}" data-format="compact">{{ totals.views | compact }}</span><span class="sub">{{ totals.likes | compact }} likes</span></div>
+<div class="stat"><span class="label">Spend</span><span class="value num" data-count="{{ totals.spend }}" data-format="inr">₹{{ totals.spend | inr }}</span><span class="sub">sum of reel prices</span></div>
+<div class="stat"><span class="label">Cost per 1K views</span><span class="value num">{% if totals.cpm is not none %}₹{{ '%.2f' | format(totals.cpm) }}{% else %}–{% endif %}</span><span class="sub">reels with price &amp; views</span></div>
+<div class="stat"><span class="label">Follower reach</span><span class="value num" data-count="{{ totals.reach }}" data-format="compact">{{ totals.reach | compact }}</span><span class="sub">sum of followers</span></div>

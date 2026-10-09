@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block layout %}
+{% set path = request.url.path %}
+<div class="host-shell">
+  <aside class="sidebar">
+    <a class="brand" href="/admin"><span class="brand-mark">P</span><span>Praabhaav</span></a>
+    <nav class="side-nav" aria-label="Host">
+      <a href="/admin" {% if path == '/admin' %}aria-current="page"{% endif %}><span class="icon">🎬</span><span class="label">Submissions</span></a>
+      <a href="/admin/campaigns" {% if path.startswith('/admin/campaigns') %}aria-current="page"{% endif %}><span class="icon">📊</span><span class="label">Campaigns</span></a>
+      <a href="/admin/payouts" {% if path.startswith('/admin/payouts') %}aria-current="page"{% endif %}><span class="icon">💸</span><span class="label">Payouts</span></a>
+      <a href="/admin/tickets" {% if path.startswith('/admin/tickets') %}aria-current="page"{% endif %}><span class="icon">💬</span><span class="label">Queries</span>{% if stats and stats.open_tickets %}<span class="count">{{ stats.open_tickets }}</span>{% endif %}</a>
+      <a href="/admin/team" {% if path.startswith('/admin/team') %}aria-current="page"{% endif %}><span class="icon">👥</span><span class="label">Team</span></a>
+    </nav>
+    <div class="side-foot">
+      <span class="who">Signed in as <strong>{{ viewer_host }}</strong></span>
+      <form method="post" action="/logout"><button class="secondary small" type="submit">Log out</button></form>
+    </div>
+  </aside>
+  <main class="host-main">
+    {% include "_errors.html" %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% endblock %}

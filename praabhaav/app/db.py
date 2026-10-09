@@ -1,7 +1,7 @@
 """SQLite storage for campaigns and creator submissions.
 
-This is the single source of truth for payments. Later phases (query agent,
-Google Sheets sync, reel verification) read and write through this module.
+This is the single source of truth for payments. The query agent, reel
+verification and payment planner all read and write through this module.
 """
 
 import sqlite3
@@ -12,6 +12,31 @@ STATUSES = ("submitted", "approved", "scheduled", "paid", "issue")
 # Statuses where the creator is still waiting for money.
 OPEN_STATUSES = ("submitted", "approved", "scheduled")
 OVERDUE_AFTER = timedelta(hours=48)
+IST = timezone(timedelta(hours=5, minutes=30))
+DEFAULT_DAILY_LIMIT = 100_000  # ₹; typical per-account UPI limit, change in admin
+
+
+
+def inr(amount) -> str:
+    """Indian digit grouping: 119000 -> '1,19,000'."""
+    if amount is None:
+        return ""
+    sign, digits = ("-", str(-int(amount))) if int(amount) < 0 else ("", str(int(amount)))
+    if len(digits) <= 3:
+        return sign + digits
+    head, tail = digits[:-3], digits[-3:]
+    groups = []
+    while len(head) > 2:
+        groups.insert(0, head[-2:])
+        head = head[:-2]
+    if head:
+        groups.insert(0, head)
+    return sign + ",".join(groups) + "," + tail
+
+
+# Result of the automatic reel check (Phase 3).
+# unchecked: not checked yet. passed / failed: checked. error: check couldn't run, retry.
+VERIFY_STATUSES = ("unchecked", "passed", "failed", "error")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS campaigns (
@@ -64,7 +89,86 @@ CREATE TABLE IF NOT EXISTS tickets (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tickets_sender ON tickets (name, contact);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key    TEXT PRIMARY KEY,
+    value  TEXT NOT NULL
+);
+
+-- Team members who can log in to the host dashboard.
+CREATE TABLE IF NOT EXISTS hosts (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    username    TEXT NOT NULL UNIQUE,
+    name        TEXT NOT NULL DEFAULT '',
+    pw_hash     TEXT NOT NULL,
+    created_at  TEXT NOT NULL
+);
+
+-- Creator logins: Instagram handle + WhatsApp number + PIN.
+CREATE TABLE IF NOT EXISTS creator_accounts (
+    ig_handle   TEXT NOT NULL,
+    whatsapp    TEXT NOT NULL,
+    pin_hash    TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    PRIMARY KEY (ig_handle, whatsapp)
+);
+
+-- Failed login counters, for temporary lockouts.
+CREATE TABLE IF NOT EXISTS login_failures (
+    key           TEXT PRIMARY KEY,
+    failures      INTEGER NOT NULL DEFAULT 0,
+    locked_until  REAL NOT NULL DEFAULT 0
+);
+
+-- Campaign tracker: the per-campaign creator sheet.
+CREATE TABLE IF NOT EXISTS roster (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    campaign_id       INTEGER NOT NULL REFERENCES campaigns(id),
+    handle            TEXT NOT NULL,
+    profile_url       TEXT NOT NULL DEFAULT '',
+    followers         INTEGER,
+    post_link         TEXT NOT NULL DEFAULT '',
+    price             INTEGER,
+    reel_url          TEXT NOT NULL DEFAULT '',
+    views             INTEGER,
+    likes             INTEGER,
+    comments          INTEGER,
+    stats_updated_at  TEXT,
+    stats_error       TEXT NOT NULL DEFAULT '',
+    notes             TEXT NOT NULL DEFAULT '',
+    created_at        TEXT NOT NULL,
+    updated_at        TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_roster_campaign ON roster (campaign_id);
+
+-- One row per campaign per day (IST): total views after that day's last refresh.
+CREATE TABLE IF NOT EXISTS view_snapshots (
+    campaign_id  INTEGER NOT NULL REFERENCES campaigns(id),
+    day          TEXT NOT NULL,
+    views        INTEGER NOT NULL,
+    live_reels   INTEGER NOT NULL,
+    recorded_at  TEXT NOT NULL,
+    PRIMARY KEY (campaign_id, day)
+);
 """
+
+ROSTER_EDITABLE = ("handle", "profile_url", "followers", "post_link", "price", "reel_url", "notes")
+
+# Columns added after Phase 1/2. Applied to new and existing databases alike,
+# so a database created by an earlier version upgrades in place.
+MIGRATIONS = [
+    ("campaigns", "audio_id", "TEXT NOT NULL DEFAULT ''"),
+    # Secret token for the client report link; '' means the link is off.
+    ("campaigns", "report_token", "TEXT NOT NULL DEFAULT ''"),
+    ("submissions", "verify_status", "TEXT NOT NULL DEFAULT 'unchecked'"),
+    ("submissions", "verify_notes", "TEXT NOT NULL DEFAULT ''"),
+    ("submissions", "verified_at", "TEXT"),
+    ("submissions", "views", "INTEGER"),
+    ("submissions", "likes", "INTEGER"),
+    ("submissions", "comments", "INTEGER"),
+    ("submissions", "audio_name", "TEXT NOT NULL DEFAULT ''"),
+]
 
 # answered: the agent replied and nothing needs the team.
 # escalated: waiting on the core team. resolved: the team closed it.
@@ -88,6 +192,10 @@ class Database:
         self.path = path
         with self.connect() as conn:
             conn.executescript(SCHEMA)
+            for table, column, ddl in MIGRATIONS:
+                existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+                if column not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
 
     @contextmanager
     def connect(self):
@@ -102,12 +210,14 @@ class Database:
 
     # --- campaigns ---------------------------------------------------------
 
-    def create_campaign(self, name: str, song: str, client: str, default_amount: int) -> int:
+    def create_campaign(
+        self, name: str, song: str, client: str, default_amount: int, audio_id: str = ""
+    ) -> int:
         with self.connect() as conn:
             cur = conn.execute(
-                "INSERT INTO campaigns (name, song, client, default_amount, created_at)"
-                " VALUES (?, ?, ?, ?, ?)",
-                (name, song, client, default_amount, to_iso(now_utc())),
+                "INSERT INTO campaigns (name, song, client, default_amount, audio_id, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (name, song, client, default_amount, audio_id, to_iso(now_utc())),
             )
             return cur.lastrowid
 
@@ -122,6 +232,18 @@ class Database:
         with self.connect() as conn:
             return conn.execute(
                 "SELECT * FROM campaigns WHERE id = ?", (campaign_id,)
+            ).fetchone()
+
+    def set_report_token(self, campaign_id: int, token: str) -> None:
+        with self.connect() as conn:
+            conn.execute("UPDATE campaigns SET report_token = ? WHERE id = ?", (token, campaign_id))
+
+    def get_campaign_by_report_token(self, token: str) -> sqlite3.Row | None:
+        if not token:
+            return None
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM campaigns WHERE report_token = ?", (token,)
             ).fetchone()
 
     def set_campaign_active(self, campaign_id: int, active: bool) -> None:
@@ -224,6 +346,256 @@ class Database:
                 f" WHERE s.status IN ({placeholders}) AND s.submitted_at < ?"
                 " ORDER BY s.submitted_at ASC",
                 (*OPEN_STATUSES, cutoff),
+            ).fetchall()
+
+    # --- reel verification -------------------------------------------------
+
+    def pending_verification(self, limit: int = 50) -> list[sqlite3.Row]:
+        """Submitted reels not yet checked, or whose last check couldn't run."""
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT s.*, c.name AS campaign_name, c.song AS campaign_song,"
+                " c.audio_id AS campaign_audio_id"
+                " FROM submissions s JOIN campaigns c ON c.id = s.campaign_id"
+                " WHERE s.status = 'submitted' AND s.verify_status IN ('unchecked', 'error')"
+                " ORDER BY s.submitted_at ASC LIMIT ?",
+                (limit,),
+            ).fetchall()
+
+    def record_verification(
+        self, submission_id: int, verify_status: str, notes: str, *,
+        views: int | None = None, likes: int | None = None, comments: int | None = None,
+        audio_name: str = "", approve: bool = False,
+    ) -> None:
+        if verify_status not in VERIFY_STATUSES:
+            raise ValueError(f"Invalid verify status: {verify_status}")
+        ts = to_iso(now_utc())
+        with self.connect() as conn:
+            conn.execute(
+                "UPDATE submissions SET verify_status = ?, verify_notes = ?, verified_at = ?,"
+                " views = COALESCE(?, views), likes = COALESCE(?, likes),"
+                " comments = COALESCE(?, comments), audio_name = ?, updated_at = ?"
+                " WHERE id = ?",
+                (verify_status, notes, ts, views, likes, comments, audio_name, ts,
+                 submission_id),
+            )
+            if approve:
+                # Only moves reels that are still 'submitted', never overrides the team.
+                conn.execute(
+                    "UPDATE submissions SET status = 'approved' WHERE id = ? AND status = 'submitted'",
+                    (submission_id,),
+                )
+
+    # --- payouts -----------------------------------------------------------
+
+    def get_setting(self, key: str) -> str | None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        return row["value"] if row else None
+
+    def set_setting(self, key: str, value: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO settings (key, value) VALUES (?, ?)"
+                " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (key, value),
+            )
+
+    def get_daily_limit(self) -> int:
+        value = self.get_setting("daily_limit")
+        return int(value) if value else DEFAULT_DAILY_LIMIT
+
+    def set_daily_limit(self, amount: int) -> None:
+        self.set_setting("daily_limit", str(amount))
+
+    def backup_to(self, path: str) -> None:
+        """Consistent copy of the live database (safe while the app is running)."""
+        src = sqlite3.connect(self.path)
+        dst = sqlite3.connect(path)
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+            src.close()
+
+    def payout_queue(self) -> list[sqlite3.Row]:
+        """Approved/scheduled payments, oldest submission first."""
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT s.*, c.name AS campaign_name FROM submissions s"
+                " JOIN campaigns c ON c.id = s.campaign_id"
+                " WHERE s.status IN ('approved', 'scheduled')"
+                " ORDER BY s.submitted_at ASC, s.id ASC"
+            ).fetchall()
+
+    def paid_since(self, since: datetime) -> int:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT COALESCE(SUM(amount), 0) FROM submissions"
+                " WHERE status = 'paid' AND paid_at >= ?",
+                (to_iso(since.astimezone(timezone.utc)),),
+            ).fetchone()[0]
+
+    def mark_paid(self, submission_ids: list[int]) -> int:
+        """Bulk-mark approved/scheduled payments as paid. Returns how many changed."""
+        if not submission_ids:
+            return 0
+        ts = to_iso(now_utc())
+        placeholders = ",".join("?" for _ in submission_ids)
+        with self.connect() as conn:
+            cur = conn.execute(
+                f"UPDATE submissions SET status = 'paid', paid_at = ?, updated_at = ?"
+                f" WHERE id IN ({placeholders}) AND status IN ('approved', 'scheduled')",
+                (ts, ts, *submission_ids),
+            )
+            return cur.rowcount
+
+    # --- hosts & creator accounts -------------------------------------------
+
+    def add_host(self, username: str, name: str, pw_hash: str) -> int:
+        with self.connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO hosts (username, name, pw_hash, created_at) VALUES (?, ?, ?, ?)",
+                (username, name, pw_hash, to_iso(now_utc())),
+            )
+            return cur.lastrowid
+
+    def get_host(self, username: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM hosts WHERE username = ?", (username,)).fetchone()
+
+    def list_hosts(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM hosts ORDER BY username").fetchall()
+
+    def set_host_password(self, username: str, pw_hash: str) -> None:
+        with self.connect() as conn:
+            conn.execute("UPDATE hosts SET pw_hash = ? WHERE username = ?", (pw_hash, username))
+
+    def delete_host(self, username: str) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM hosts WHERE username = ?", (username,))
+
+    def get_creator_account(self, ig_handle: str, whatsapp: str) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM creator_accounts WHERE ig_handle = ? AND whatsapp = ?",
+                (ig_handle, whatsapp),
+            ).fetchone()
+
+    def set_creator_pin(self, ig_handle: str, whatsapp: str, pin_hash: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO creator_accounts (ig_handle, whatsapp, pin_hash, created_at)"
+                " VALUES (?, ?, ?, ?) ON CONFLICT(ig_handle, whatsapp)"
+                " DO UPDATE SET pin_hash = excluded.pin_hash",
+                (ig_handle, whatsapp, pin_hash, to_iso(now_utc())),
+            )
+
+    def delete_creator_account(self, ig_handle: str, whatsapp: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "DELETE FROM creator_accounts WHERE ig_handle = ? AND whatsapp = ?",
+                (ig_handle, whatsapp),
+            )
+            conn.execute("DELETE FROM login_failures WHERE key = ?",
+                         (f"creator:{ig_handle}:{whatsapp}",))
+
+    def is_locked(self, key: str, now: float) -> bool:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT locked_until FROM login_failures WHERE key = ?", (key,)
+            ).fetchone()
+        return bool(row and row["locked_until"] > now)
+
+    def record_login_failure(self, key: str, now: float, max_failures: int, lock_seconds: int) -> None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT failures FROM login_failures WHERE key = ?", (key,)).fetchone()
+            failures = (row["failures"] if row else 0) + 1
+            locked_until = now + lock_seconds if failures >= max_failures else 0
+            if locked_until:
+                failures = 0
+            conn.execute(
+                "INSERT INTO login_failures (key, failures, locked_until) VALUES (?, ?, ?)"
+                " ON CONFLICT(key) DO UPDATE SET failures = excluded.failures,"
+                " locked_until = excluded.locked_until",
+                (key, failures, locked_until),
+            )
+
+    def clear_login_failures(self, key: str) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM login_failures WHERE key = ?", (key,))
+
+    # --- campaign tracker (roster) -----------------------------------------
+
+    def add_roster_row(self, campaign_id: int, **fields) -> int:
+        fields = {k: v for k, v in fields.items() if k in ROSTER_EDITABLE}
+        ts = to_iso(now_utc())
+        cols = ["campaign_id", *fields, "created_at", "updated_at"]
+        with self.connect() as conn:
+            cur = conn.execute(
+                f"INSERT INTO roster ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+                (campaign_id, *fields.values(), ts, ts),
+            )
+            return cur.lastrowid
+
+    def get_roster_row(self, row_id: int) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM roster WHERE id = ?", (row_id,)).fetchone()
+
+    def list_roster(self, campaign_id: int) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM roster WHERE campaign_id = ? ORDER BY id", (campaign_id,)
+            ).fetchall()
+
+    def update_roster_row(self, row_id: int, **fields) -> None:
+        fields = {k: v for k, v in fields.items() if k in ROSTER_EDITABLE}
+        if not fields:
+            return
+        sets = ", ".join(f"{k} = ?" for k in fields)
+        with self.connect() as conn:
+            conn.execute(
+                f"UPDATE roster SET {sets}, updated_at = ? WHERE id = ?",
+                (*fields.values(), to_iso(now_utc()), row_id),
+            )
+
+    def set_roster_stats(self, row_id: int, *, views=None, likes=None, comments=None,
+                         followers=None, error: str = "") -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "UPDATE roster SET views = COALESCE(?, views), likes = COALESCE(?, likes),"
+                " comments = COALESCE(?, comments), followers = COALESCE(?, followers),"
+                " stats_error = ?, stats_updated_at = ? WHERE id = ?",
+                (views, likes, comments, followers, error, to_iso(now_utc()), row_id),
+            )
+
+    def delete_roster_row(self, row_id: int) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM roster WHERE id = ?", (row_id,))
+
+    def save_snapshot(self, campaign_id: int, day: str, views: int, live_reels: int) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO view_snapshots (campaign_id, day, views, live_reels, recorded_at)"
+                " VALUES (?, ?, ?, ?, ?) ON CONFLICT(campaign_id, day) DO UPDATE SET"
+                " views = excluded.views, live_reels = excluded.live_reels,"
+                " recorded_at = excluded.recorded_at",
+                (campaign_id, day, views, live_reels, to_iso(now_utc())),
+            )
+
+    def list_snapshots(self, campaign_id: int) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT day, views, live_reels FROM view_snapshots WHERE campaign_id = ?"
+                " ORDER BY day", (campaign_id,),
+            ).fetchall()
+
+    def active_roster_with_reels(self) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT r.* FROM roster r JOIN campaigns c ON c.id = r.campaign_id"
+                " WHERE c.active = 1 AND r.reel_url != ''"
             ).fetchall()
 
     # --- tickets -----------------------------------------------------------

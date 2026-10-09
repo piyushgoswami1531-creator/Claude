@@ -12,6 +12,8 @@ The agent only states policies written here; anything else it escalates.
 - The target is to pay within 24–48 hours of approval.
 - Sometimes payments take longer because of daily UPI transfer limits on our side.
   When this happens payments go out in order of submission, oldest first.
+- The status page shows an expected payment date for approved reels. It is an
+  estimate based on the daily limit and the queue ahead, and can move by a day.
 - "Paid" means the money was sent. If a creator sees "paid" but has not received it,
   they should check the UPI app for the exact UPI ID they submitted; if it still
   isn't there, the team will check it with the transaction reference.

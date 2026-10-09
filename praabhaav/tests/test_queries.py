@@ -10,6 +10,7 @@ from app import db as dbmod
 from app.agent import ESCALATION_LINE, QueryAgent
 from app.digest import build_digest
 from app.main import create_app
+from tests.helpers import creator_page, login_creator, submit_reel
 
 ADMIN = ("admin", "secret")
 REEL = "https://www.instagram.com/reel/Cabc123/"
@@ -76,11 +77,11 @@ def make_client(tmp_path):
         c = TestClient(app)
         c.post("/admin/campaigns", auth=ADMIN,
                data={"name": "Monsoon", "song": "Baarish", "default_amount": 500})
-        c.post("/submit", data={
+        submit_reel(c, {
             "campaign_id": 1, "ig_handle": "riya", "whatsapp": "9876543210",
             "upi_id": "riya@okaxis", "upi_confirm": "riya@okaxis", "reel_url": REEL,
         })
-        c.post("/submit", data={
+        submit_reel(c, {
             "campaign_id": 1, "ig_handle": "aman", "whatsapp": "9123456789",
             "upi_id": "aman@ybl", "upi_confirm": "aman@ybl", "reel_url": REEL,
         })
@@ -89,10 +90,16 @@ def make_client(tmp_path):
 
 
 def ask(c, message, role="creator", name="riya", whatsapp="9876543210", campaign_id=""):
-    return c.post("/query", data={
-        "role": role, "name": name, "whatsapp": whatsapp,
-        "campaign_id": campaign_id, "message": message,
-    })
+    """Creators ask while logged in; clients ask without logging in."""
+    if role == "creator":
+        login_creator(c, name, whatsapp)
+        r = c.post("/query", data={"campaign_id": campaign_id, "message": message})
+    else:
+        c.cookies.clear()
+        r = c.post("/query", data={"name": name, "whatsapp": whatsapp,
+                                   "campaign_id": campaign_id, "message": message})
+    c.cookies.clear()
+    return r
 
 
 def ticket_link(html):
@@ -128,10 +135,13 @@ def test_rules_escalate_upi_change(make_client):
     assert "@riya" in notifier.sent[0] and "upi change" in notifier.sent[0]
 
 
-def test_unknown_creator_payment_question_escalates(make_client):
+def test_logged_out_query_never_sees_creator_data(make_client):
+    # Typing a creator's handle and number without logging in gives nothing away.
     c, notifier, db = make_client()
-    ask(c, "where is my payment", name="nobody")
-    assert db.get_ticket(1)["status"] == "escalated"
+    r = ask(c, "where is my payment", role="client", name="riya", whatsapp="9876543210")
+    t = db.get_ticket(1)
+    assert t["role"] == "client" and t["status"] == "escalated"
+    assert "₹500" not in r.text and "Monsoon" not in r.text
 
 
 # --- Claude mode ----------------------------------------------------------------------
@@ -221,16 +231,16 @@ def test_team_reply_reaches_creator(make_client):
                data={"new_status": "resolved", "team_reply": "Updated your UPI, paying today."})
     assert r.status_code == 303
     assert "Updated your UPI" in c.get(link).text
-    r = c.post("/status", data={"ig_handle": "riya", "whatsapp": "9876543210"})
+    r = creator_page(c, "riya", "9876543210")
     assert "Updated your UPI" in r.text
-    # A different number sees nothing.
-    r = c.post("/status", data={"ig_handle": "riya", "whatsapp": "9000000000"})
-    assert "Updated your UPI" not in r.text
+    # Wrong PIN or a different number sees nothing.
+    assert "Updated your UPI" not in creator_page(c, "riya", "9876543210", pin="9999").text
+    assert "Updated your UPI" not in creator_page(c, "riya", "9000000000").text
 
 
 def test_admin_tickets_requires_auth(make_client):
     c, _, _ = make_client()
-    assert c.get("/admin/tickets").status_code == 401
+    assert c.get("/admin/tickets", follow_redirects=False).status_code == 303
     assert c.post("/admin/tickets/1", data={"new_status": "resolved"}).status_code == 401
 
 
@@ -240,7 +250,7 @@ def test_query_validation(make_client):
     assert r.status_code == 400
     r = ask(c, "x" * 2001)
     assert r.status_code == 400
-    r = ask(c, "valid question here", role="hacker")
+    r = ask(c, "valid question here", role="client", name="", whatsapp="123")
     assert r.status_code == 400
     assert db.list_tickets() == []
 

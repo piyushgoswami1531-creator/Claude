@@ -1,26 +1,26 @@
 {% extends "base.html" %}
 {% block title %}Ask a question · Praabhaav{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>Ask a question</h1>
-  <p class="muted">Payment not received, wrong UPI ID, question about a campaign? Ask here and you'll get an answer right away, or the team will follow up on WhatsApp.</p>
+<section class="card glow">
+  <h1>Ask a question 💬</h1>
+  {% if viewer_creator %}
+  <p class="muted">Asking as <strong>@{{ viewer_creator.handle }}</strong>. Payment questions are answered instantly from your records, or the team follows up on WhatsApp.</p>
+  {% else %}
+  <p class="muted">For clients (artists, labels, agencies) and anyone else. <strong>Creators:</strong> <a href="/me">log in first</a> so we can look up your payments.</p>
+  {% endif %}
 
-  <form method="post" action="/query" class="form">
-    <fieldset class="role-pick">
-      <legend>I am a</legend>
-      <label class="radio"><input type="radio" name="role" value="creator" {% if values.role != 'client' %}checked{% endif %}> Creator</label>
-      <label class="radio"><input type="radio" name="role" value="client" {% if values.role == 'client' %}checked{% endif %}> Client (artist / label / agency)</label>
-    </fieldset>
-
-    <label>Instagram handle (creators) or your name / company (clients)
-      <input name="name" required placeholder="@yourhandle or XYZ Records" value="{{ values.name or '' }}" autocapitalize="off">
-    </label>
-
-    <label>WhatsApp number
-      <input name="whatsapp" required inputmode="tel" placeholder="98765 43210" value="{{ values.whatsapp or '' }}">
-    </label>
-
-    <label>Campaign (optional)
+  <form method="post" action="/query" class="form" data-busy>
+    {% if not viewer_creator %}
+    <div class="row2">
+      <label>Your name / company
+        <input name="name" required placeholder="XYZ Records" value="{{ values.name or '' }}">
+      </label>
+      <label>WhatsApp number
+        <input name="whatsapp" required inputmode="tel" placeholder="98765 43210" value="{{ values.whatsapp or '' }}">
+      </label>
+    </div>
+    {% endif %}
+    <label>Campaign <span class="hint">Optional</span>
       <select name="campaign_id">
         <option value="">Not about a specific campaign</option>
         {% for c in campaigns %}
@@ -28,13 +28,10 @@
         {% endfor %}
       </select>
     </label>
-
     <label>Your question
-      <textarea name="message" required rows="5" maxlength="2000" placeholder="e.g. I submitted my reel 3 days ago but haven't been paid yet">{{ values.message or '' }}</textarea>
+      <textarea name="message" required rows="5" maxlength="2000" placeholder="{{ 'e.g. My payment for Monsoon Launch hasn’t arrived yet' if viewer_creator else 'e.g. Can we get a mid-campaign report by Friday?' }}">{{ values.message or '' }}</textarea>
     </label>
-
-    <button type="submit">Send</button>
+    <button type="submit" class="block">Send</button>
   </form>
-  <p class="muted small-print">Creators: use the same Instagram handle and WhatsApp number you submitted your reel with, so we can find your payments.</p>
 </section>
 {% endblock %}

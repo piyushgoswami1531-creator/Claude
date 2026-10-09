@@ -1,9 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Submitted · Praabhaav{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>Got it, @{{ ig_handle }} ✅</h1>
-  <p>Your reel for <strong>{{ campaign.name }}</strong> is submitted. We'll verify it and add your payment to the queue.</p>
-  <p>Track it anytime on the <a href="/status">payment status</a> page, using your Instagram handle and WhatsApp number.</p>
+<section class="card glow" style="text-align:center">
+  <div style="font-size:3rem">🎉</div>
+  <h1>Got it, @{{ ig_handle }}!</h1>
+  <p>Your reel for <strong>{{ campaign.name }}</strong> is in. We'll check it and add your payment to the queue.</p>
+  <p><a class="button" href="/me">See my payments →</a></p>
+  <p class="muted small">Next time, log in at <strong>My payments</strong> with your handle, WhatsApp number and PIN.</p>
 </section>
 {% endblock %}

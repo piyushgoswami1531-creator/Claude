@@ -1,46 +1,61 @@
 {% extends "base.html" %}
 {% block title %}Submit your reel · Praabhaav{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>Submit your reel</h1>
+<section class="card glow">
+  <h1>Submit your reel 🎬</h1>
   <p class="muted">Fill this once your reel is live. We pay to the UPI ID you enter here.</p>
 
   {% if not campaigns %}
-    <p>No campaigns are open right now. Please check back with the Praabhaav team.</p>
+    <div class="alert alert-info">No campaigns are open right now. Please check back with the Praabhaav team.</div>
   {% else %}
-  <form method="post" action="/submit" class="form">
+  <form method="post" action="/submit" class="form" data-busy>
     <label>Campaign
       <select name="campaign_id" required>
         <option value="">Choose campaign…</option>
         {% for c in campaigns %}
-        <option value="{{ c.id }}" {% if values.campaign_id == c.id %}selected{% endif %}>
-          {{ c.name }}{% if c.song %} · {{ c.song }}{% endif %}
-        </option>
+        <option value="{{ c.id }}" {% if values.campaign_id == c.id %}selected{% endif %}>{{ c.name }}{% if c.song %} · {{ c.song }}{% endif %}</option>
         {% endfor %}
       </select>
     </label>
 
-    <label>Instagram handle
-      <input name="ig_handle" required placeholder="@yourhandle" value="{{ values.ig_handle or '' }}" autocapitalize="off">
-    </label>
-
-    <label>WhatsApp number
-      <input name="whatsapp" required inputmode="tel" placeholder="98765 43210" value="{{ values.whatsapp or '' }}">
-    </label>
+    {% if viewer_creator %}
+    <div class="alert alert-good">Submitting as <strong>@{{ viewer_creator.handle }}</strong> · {{ viewer_creator.phone }}</div>
+    {% else %}
+    <div class="row2">
+      <label>Instagram handle
+        <input name="ig_handle" required placeholder="@yourhandle" value="{{ values.ig_handle or '' }}" autocapitalize="off" autocomplete="username">
+      </label>
+      <label>WhatsApp number
+        <input name="whatsapp" required inputmode="tel" placeholder="98765 43210" value="{{ values.whatsapp or '' }}">
+      </label>
+    </div>
+    {% endif %}
 
     <label>Reel link
       <input name="reel_url" required type="url" placeholder="https://www.instagram.com/reel/…" value="{{ values.reel_url or '' }}">
     </label>
+    <div class="row2">
+      <label>UPI ID
+        <input name="upi_id" required placeholder="name@okaxis" value="{{ values.upi_id or '' }}" autocapitalize="off">
+      </label>
+      <label>Confirm UPI ID
+        <input name="upi_confirm" required placeholder="Type it again" value="{{ values.upi_confirm or '' }}" autocapitalize="off" autocomplete="off">
+      </label>
+    </div>
 
-    <label>UPI ID
-      <input name="upi_id" required placeholder="name@okaxis" value="{{ values.upi_id or '' }}" autocapitalize="off">
-    </label>
+    {% if not viewer_creator %}
+    <div class="row2">
+      <label>PIN <span class="hint">4–6 digits. New here? Choose one. Used before? Enter yours.</span>
+        <input name="pin" type="password" class="pin-input" required inputmode="numeric" pattern="\d{4,6}" maxlength="6" placeholder="••••" autocomplete="current-password">
+      </label>
+      <label>Confirm PIN <span class="hint">Only needed the first time.</span>
+        <input name="pin_confirm" type="password" class="pin-input" inputmode="numeric" pattern="\d{4,6}" maxlength="6" placeholder="••••" autocomplete="new-password">
+      </label>
+    </div>
+    <p class="hint muted small">Your PIN keeps your payment details private. Only you can see them.</p>
+    {% endif %}
 
-    <label>Confirm UPI ID
-      <input name="upi_confirm" required placeholder="Type it again" value="{{ values.upi_confirm or '' }}" autocapitalize="off" autocomplete="off">
-    </label>
-
-    <button type="submit">Submit</button>
+    <button type="submit" class="block">Submit reel</button>
   </form>
   {% endif %}
 </section>

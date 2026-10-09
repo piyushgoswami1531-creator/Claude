@@ -1,0 +1,41 @@
+{% extends "admin_base.html" %}
+{% block title %}Campaigns · Praabhaav{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Campaigns</h1><p class="muted">Each campaign has its own creator tracker, so there's no need for separate sheets.</p></div>
+</div>
+
+<details class="card panel glow" {% if not cards %}open{% endif %}>
+  <summary>＋ New campaign</summary>
+  <form method="post" action="/admin/campaigns" class="form">
+    <div class="row2">
+      <label>Campaign name<input name="name" required placeholder="Monsoon Launch"></label>
+      <label>Song<input name="song" placeholder="Baarish Ban Jaana"></label>
+    </div>
+    <div class="row2">
+      <label>Client <span class="hint">Artist, label or agency</span><input name="client" placeholder="XYZ Records"></label>
+      <label>Default ₹ per reel <span class="hint">For creator payments</span><input name="default_amount" type="number" min="0" placeholder="600"></label>
+    </div>
+    <label>Instagram audio link <span class="hint">Used to check that reels use the right song</span><input name="audio_link" placeholder="https://www.instagram.com/reels/audio/…"></label>
+    <div><button>Create campaign</button></div>
+  </form>
+</details>
+
+<div class="campaign-grid">
+{% for card in cards %}{% set c = card.c %}{% set t = card.t %}
+  <a class="campaign-card {% if not c.active %}inactive{% endif %}" href="/admin/campaigns/{{ c.id }}" style="{% if not c.active %}opacity:.6{% endif %}">
+    <div class="cover"></div>
+    <div class="card-head" style="margin:0">
+      <h2>{{ c.name }}</h2>
+      {% if c.active %}<span class="badge badge-live">live</span>{% else %}<span class="badge">closed</span>{% endif %}
+    </div>
+    <div class="meta">{% if c.song %}🎵 {{ c.song }}{% endif %}{% if c.client %} · {{ c.client }}{% endif %}</div>
+    <div class="mini-stats">
+      <div><strong class="num">{{ t.creators }}</strong><span>Creators</span></div>
+      <div><strong class="num">{{ t.views | compact }}</strong><span>Views</span></div>
+      <div><strong class="num">₹{{ t.spend | compact }}</strong><span>Spend</span></div>
+    </div>
+  </a>
+{% endfor %}
+</div>
+{% endblock %}

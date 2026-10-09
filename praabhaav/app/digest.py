@@ -7,9 +7,9 @@ Schedule it once a day, e.g. with cron at 9:30 IST:
 import os
 from datetime import datetime
 
-from .agent import IST
-from .db import Database, now_utc
-from .notify import Notifier
+from .db import IST, Database, inr, now_utc
+from .planner import current_plan, today_ist
+from .notify import Notifier, configured_base_url
 
 
 def build_digest(db: Database, base_url: str) -> str:
@@ -17,12 +17,19 @@ def build_digest(db: Database, base_url: str) -> str:
     lines = [
         f"📋 Praabhaav daily summary · {datetime.now(IST).strftime('%d %b %Y')}",
         "",
-        f"💰 Waiting for payment: {stats['pending']} (₹{stats['pending_amount']:,})",
+        f"💰 Waiting for payment: {stats['pending']} (₹{inr(stats['pending_amount'])})",
         f"⏰ Overdue >48h: {stats['overdue']}",
     ]
     for r in db.list_overdue()[:10]:
         days = (now_utc() - datetime.fromisoformat(r["submitted_at"])).days
-        lines.append(f"   • @{r['ig_handle']} · {r['campaign_name']} · ₹{r['amount']} · {days}d")
+        lines.append(f"   • @{r['ig_handle']} · {r['campaign_name']} · ₹{inr(r['amount'])} · {days}d")
+    plan = current_plan(db)
+    todays = [p for p in plan if p.pay_date == today_ist()]
+    lines.append(
+        f"🧾 Today's payment batch: {len(todays)} creators "
+        f"(₹{inr(sum(p.submission['amount'] for p in todays))}); "
+        f"queue clears by {plan[-1].pay_date:%d %b}" if plan else "🧾 Payment queue is empty"
+    )
     lines.append(f"⚠️ Reels with issues: {stats['issues']}")
     lines.append(f"📨 Open escalated queries: {stats['open_tickets']}")
     for t in db.list_tickets("escalated")[:10]:
@@ -33,7 +40,7 @@ def build_digest(db: Database, base_url: str) -> str:
 
 def main() -> None:
     db = Database(os.environ.get("PRAABHAAV_DB", "praabhaav.db"))
-    base_url = os.environ.get("PUBLIC_BASE_URL", "http://localhost:8000")
+    base_url = configured_base_url() or "http://localhost:8000"
     text = build_digest(db, base_url)
     if not Notifier.from_env().send(text):
         print(text)

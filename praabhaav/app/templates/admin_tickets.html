@@ -1,56 +1,40 @@
-{% extends "base.html" %}
-{% block title %}Queries · Praabhaav admin{% endblock %}
-{% block body_class %}admin{% endblock %}
+{% extends "admin_base.html" %}
+{% block title %}Queries · Praabhaav{% endblock %}
 {% block content %}
-<div class="toolbar">
-  <h1>Queries</h1>
-  <nav class="admin-nav">
-    <a href="/admin">Payments</a>
-    <a href="/admin/tickets" aria-current="page">Queries ({{ stats.open_tickets }} open)</a>
-  </nav>
+<div class="page-head">
+  <div><h1>Queries</h1><p class="muted">Agent: {{ agent_mode }} · Telegram alerts: {{ 'on' if telegram_on else 'off (alerts go to the server log)' }}</p></div>
+  <form method="post" action="/admin/digest" target="_blank"><button class="secondary small">📨 Send daily summary now</button></form>
 </div>
-<p class="muted">Agent: {{ agent_mode }} · Telegram alerts: {{ 'on' if telegram_on else 'off (alerts go to the server log)' }}</p>
 
 <section class="card">
   <div class="toolbar">
     <form method="get" action="/admin/tickets" class="inline-form">
-      <select name="status_filter" onchange="this.form.submit()">
+      <select name="status_filter" onchange="this.form.submit()" aria-label="Filter queries">
         <option value="all" {% if not status_filter %}selected{% endif %}>All queries</option>
-        {% for s in statuses %}<option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        {% for s in statuses %}<option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}
       </select>
     </form>
-    <form method="post" action="/admin/digest" target="_blank">
-      <button class="small secondary">Send daily summary now</button>
-    </form>
   </div>
-
   {% for t in tickets %}
   <article class="ticket priority-{{ t.priority }}">
-    <div class="result-head">
-      <h2>#{{ t.id }} · {{ t.category.replace('_', ' ') }}</h2>
-      <span>
-        <span class="badge badge-p-{{ t.priority }}">{{ t.priority }}</span>
-        <span class="badge badge-t-{{ t.status }}">{{ t.status }}</span>
-      </span>
+    <div class="card-head">
+      <h3>#{{ t.id }} · {{ t.category.replace('_', ' ')|capitalize }}</h3>
+      <span><span class="badge badge-p-{{ t.priority }}">{{ t.priority }}</span> <span class="badge badge-t-{{ t.status }}">{{ t.status }}</span></span>
     </div>
-    <p class="muted">
-      {{ '@' if t.role == 'creator' }}{{ t.name }} ({{ t.role }}) · WhatsApp {{ t.contact }}
-      {% if t.campaign_name %} · {{ t.campaign_name }}{% endif %} · {{ t.created_at | ist }}
-    </p>
+    <p class="muted small">{{ '@' if t.role == 'creator' }}{{ t.name }} ({{ t.role }}) · WhatsApp {{ t.contact }}{% if t.campaign_name %} · {{ t.campaign_name }}{% endif %} · {{ t.created_at | ist }}</p>
     <p><strong>Summary:</strong> {{ t.team_summary }}</p>
     <p class="quote">{{ t.message }}</p>
-    <p class="muted"><strong>Auto-reply sent</strong> ({{ t.handled_by }}): {{ t.ai_reply }}</p>
-
+    <p class="muted small"><strong>Auto-reply sent</strong> ({{ t.handled_by }}): {{ t.ai_reply }}</p>
     <form method="post" action="/admin/tickets/{{ t.id }}" class="row-form">
-      <input name="team_reply" value="{{ t.team_reply }}" placeholder="Reply shown to the sender" class="grow">
-      <select name="new_status">
-        {% for s in statuses %}<option value="{{ s }}" {% if s == t.status %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      <input name="team_reply" value="{{ t.team_reply }}" placeholder="Reply shown to the sender" class="grow" style="flex:1;min-width:220px" aria-label="Reply to sender">
+      <select name="new_status" aria-label="Query status">
+        {% for s in statuses %}<option value="{{ s }}" {% if s == t.status %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}
       </select>
       <button class="small">Save</button>
     </form>
   </article>
   {% else %}
-  <p class="muted">No queries here. 🎉</p>
+  <p class="empty">No queries here. 🎉</p>
   {% endfor %}
 </section>
 {% endblock %}
