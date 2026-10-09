@@ -97,6 +97,13 @@ export interface Review {
   id: number; week_start: string; verdict: string; findings: string[]; actions: string[]; created_at: string;
 }
 
+export interface Me {
+  id: number;
+  email: string;
+  name: string;
+  ai: { mode: "live" | "demo"; limit: number | null; used_today: number };
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -107,6 +114,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, {
+      credentials: "same-origin",
       ...init,
       headers: init?.body instanceof FormData ? init.headers : { "Content-Type": "application/json", ...init?.headers },
     });
@@ -128,7 +136,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 const json = (body: unknown) => JSON.stringify(body);
 
 export const api = {
-  health: () => request<{ ai_mode: "live" | "demo"; model: string }>("/api/health"),
+  me: () => request<Me>("/api/auth/me"),
+  signup: (body: { name: string; email: string; password: string }) =>
+    request<Me>("/api/auth/signup", { method: "POST", body: json(body) }),
+  login: (body: { email: string; password: string }) => request<Me>("/api/auth/login", { method: "POST", body: json(body) }),
+  logout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
+  deleteAccount: (password: string) => request<{ ok: boolean }>("/api/auth/me", { method: "DELETE", body: json({ password }) }),
+  health: () => request<{ ai_mode: "live" | "demo"; model: string; daily_ai_limit: number | null }>("/api/health"),
   parseText: (text: string) => request<ParsedSyllabus>("/api/syllabus/parse", { method: "POST", body: json({ text }) }),
   parsePdf: (file: File) => {
     const fd = new FormData();

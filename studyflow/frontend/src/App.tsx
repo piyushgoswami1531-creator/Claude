@@ -10,6 +10,7 @@ import QuizPage from "./pages/Quiz";
 import ReviewPage from "./pages/Review";
 import Setup from "./pages/Setup";
 import Today from "./pages/Today";
+import AuthPage from "./pages/Auth";
 
 // Recharts is heavy: only load it when the Progress page is opened.
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -27,9 +28,33 @@ function Page({ children }: { children: React.ReactNode }) {
   );
 }
 
+function Splash() {
+  return (
+    <div className="grid min-h-dvh place-items-center">
+      <motion.span className="grid size-14 place-items-center rounded-2xl bg-ink" animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>
+        <svg viewBox="0 0 32 32" className="size-8"><path d="M7 17.5l5.5 5.5L25 10" fill="none" stroke="var(--accent)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </motion.span>
+    </div>
+  );
+}
+
 export default function App() {
   const location = useLocation();
-  const plan = useQuery({ queryKey: ["plan"], queryFn: api.plan });
+  const me = useQuery({ queryKey: ["me"], queryFn: api.me, retry: false });
+  const loggedIn = !!me.data;
+  const plan = useQuery({ queryKey: ["plan"], queryFn: api.plan, enabled: loggedIn });
+
+  if (me.isPending) return <Splash />;
+  if (!loggedIn) {
+    if (me.error && !(me.error instanceof ApiError && me.error.status === 401)) {
+      return (
+        <div className="mx-auto max-w-xl p-6">
+          <ErrorBox error={me.error} onRetry={() => me.refetch()} />
+        </div>
+      );
+    }
+    return <AuthPage />;
+  }
   const noPlan = plan.error instanceof ApiError && plan.error.status === 404;
 
   if (location.pathname.startsWith("/setup") || noPlan) {

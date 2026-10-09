@@ -1,14 +1,15 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..deps import require_plan
-from ..models import Plan, Question, Quiz, Topic
+from ..deps import current_user, get_today, require_plan
+from ..models import Plan, Question, Quiz, Topic, User
 from ..schemas import QuizCreate, QuizSubmit
 from ..serializers import quiz_out
+from ..services import usage
 from ..services.ai import quiz as ai_quiz
 
 router = APIRouter(prefix="/api/quizzes", tags=["quiz"])
@@ -22,7 +23,8 @@ def _owned_topic(db: Session, plan: Plan, topic_id: int) -> Topic:
 
 
 @router.post("")
-def create_quiz(body: QuizCreate, plan: Plan = Depends(require_plan), db: Session = Depends(get_db)):
+def create_quiz(body: QuizCreate, plan: Plan = Depends(require_plan), user: User = Depends(current_user),
+                db: Session = Depends(get_db), today: date = Depends(get_today)):
     topic = _owned_topic(db, plan, body.topic_id)
     # Reuse an unfinished quiz instead of paying for a new one (e.g. page refresh).
     open_quiz = db.scalar(
@@ -31,6 +33,7 @@ def create_quiz(body: QuizCreate, plan: Plan = Depends(require_plan), db: Sessio
     if open_quiz:
         return quiz_out(open_quiz, reveal=False)
 
+    usage.charge(db, user, today)
     attempt = db.scalar(select(func.count(Quiz.id)).where(Quiz.topic_id == topic.id)) or 0
     generated, sources = ai_quiz.generate(topic.unit.subject.name, topic.unit.name, topic.name, attempt)
     quiz = Quiz(topic_id=topic.id, total=len(generated.questions), sources=sources)

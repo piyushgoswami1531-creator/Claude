@@ -2,6 +2,8 @@
 
 **Turn your syllabus into a study plan that adapts, quizzes you, and tells you the truth about your progress.**
 
+🔗 **Live demo:** _add your Render URL here_ · 📲 Installable on phone & desktop · 🔐 Accounts with private data
+
 Paste your syllabus (or upload the PDF), set your exam date and daily hours, and StudyFlow builds a day-by-day plan with spaced revision. When you miss a day, it re-plans automatically. When you finish a topic, Claude writes a 10-question quiz checked against the web. Every week, it gives you a blunt review built from your real numbers.
 
 ![Today view](docs/screenshots/05-today.png)
@@ -18,12 +20,17 @@ Paste your syllabus (or upload the PDF), set your exam date and daily hours, and
 | **Topic quizzes** | 10 MCQs per topic (4 easy, 4 medium, 2 hard), researched with Claude's web search tool, with explanations and sources after you submit. |
 | **Performance tracker** | Syllabus completion, streak, quiz accuracy per subject and difficulty, planned-vs-actual study time, and an auto-generated weak-topic list. |
 | **Blunt weekly review** | *"You skipped 3 of 5 DBMS sessions and scored 40% on Joins. Fix this first."* Specific findings from your real stats plus exactly 3 actions for the week. |
+| **Accounts** | Sign up / log in. Each student's plans, quizzes and reviews are private. Delete your account and all data at any time. |
+| **Install as an app** | It's a PWA: "Install" in Chrome/Edge, "Add to Home Screen" on iPhone. Opens full-screen with its own icon. |
+| **Fair-use AI limit** | Each user gets a daily number of AI requests (default 15), so a public deployment can't run up your API bill. |
 | **Design** | Dark/light mode, mobile-first layout, animated progress rings, self-drawing checkmarks, smooth page transitions. Respects `prefers-reduced-motion`. |
 
 ## Screenshots
 
 | | |
 |---|---|
+| ![Sign up](docs/screenshots/00-signup.png) | ![Account menu](docs/screenshots/16-account-menu.png) |
+| *Sign up / log in* | *Account menu, AI usage, install* |
 | ![Syllabus input](docs/screenshots/01-syllabus.png) | ![Topic review](docs/screenshots/02-topics.png) |
 | *Paste or upload a syllabus* | *Review and edit the parsed structure* |
 | ![Quiz](docs/screenshots/07-quiz.png) | ![Quiz results](docs/screenshots/08-quiz-results.png) |
@@ -36,6 +43,7 @@ Paste your syllabus (or upload the PDF), set your exam date and daily hours, and
 <p>
   <img src="docs/screenshots/14-mobile-today.png" width="240" alt="Mobile today view" />
   <img src="docs/screenshots/15-mobile-dashboard.png" width="240" alt="Mobile dashboard" />
+  <img src="docs/screenshots/18-mobile-signup.png" width="240" alt="Mobile sign up" />
 </p>
 
 > 📸 **Placeholder:** add a GIF of the check-off animation here → `docs/screenshots/demo.gif`
@@ -52,7 +60,7 @@ npm run setup     # one time: creates the Python venv, installs everything, crea
 npm run dev       # starts backend + frontend together
 ```
 
-Open **http://localhost:5173**. The API docs are at http://localhost:8000/docs.
+Open **http://localhost:5173**, create an account (it's stored in your local database), and paste a syllabus. The API docs are at http://localhost:8000/docs.
 
 ### Add your Claude API key (optional)
 
@@ -69,14 +77,17 @@ The app runs fully **without a key** in *Demo AI* mode: a heuristic syllabus par
 |---|---|---|
 | `ANTHROPIC_API_KEY` | *(empty)* | Your key. Never commit it. `.env` is git-ignored. |
 | `CLAUDE_MODEL` | `claude-opus-5-5` | Use `claude-sonnet-5-5` or `claude-haiku-5-5` to cut cost. |
+| `DAILY_AI_LIMIT` | `15` | AI requests per user per day (`0` = unlimited). |
 | `AI_MOCK` | `false` | Force demo mode even when a key is set. |
 | `AI_FALLBACKS` | `true` | Server-side refusal fallback (Claude API only). |
-| `DATABASE_URL` | `backend/studyflow.db` | SQLite file location. |
+| `DATABASE_URL` | `backend/studyflow.db` | SQLite locally; a `postgresql://` URL in production. |
+| `SECRET_KEY` | auto (local) | Signs login sessions. **Set a long random value in production.** |
+| `COOKIE_SECURE` | `false` | `true` in production (HTTPS-only session cookie). |
 
 ### Other commands
 
 ```bash
-npm test          # backend test suite (40 tests, no API key or network needed)
+npm test          # backend test suite (54 tests, no API key or network needed)
 npm run build     # production build of the frontend
 npm start         # serve the built app + API on one port: http://localhost:8000
 ```
@@ -93,14 +104,14 @@ npm start         # serve the built app + API on one port: http://localhost:8000
                            │ JSON /api  (Vite proxy in dev)
 ┌──────────────────────────▼──────────────────────────────┐
 │ FastAPI                                                 │
-│  routers/   syllabus · plan · quiz · stats              │
+│  routers/   auth · syllabus · plan · quiz · stats       │
 │  services/                                              │
 │   ├ scheduler.py  pure, deterministic planning algorithm│
 │   ├ planning.py   DB side: create plan, re-plan, ticks  │
 │   ├ stats.py      every dashboard / review number       │
 │   └ ai/  client · schemas · syllabus · quiz · review    │
 │          · mock (offline demo)                          │
-│  SQLAlchemy 2 → SQLite                                  │
+│  SQLAlchemy 2 → SQLite (local) · PostgreSQL (production)│
 └──────────────────────────┬──────────────────────────────┘
                            │ Anthropic Python SDK
                        Claude API (key from .env)
@@ -125,7 +136,9 @@ npm start         # serve the built app + API on one port: http://localhost:8000
 ### Database schema
 
 ```
-plans          id, exam_date, daily_minutes, is_active, version, required_daily_minutes
+users          id, email (unique), name, password_hash, created_at
+ai_usage       id, user_id→, day, count                      (unique per user+day)
+plans          id, user_id→, exam_date, daily_minutes, is_active, version, required_daily_minutes
 subjects       id, plan_id→, name, strength(weak|neutral|strong), color, position
 units          id, subject_id→, name, position
 topics         id, unit_id→, name, difficulty(1-5), est_minutes, status(pending|done), completed_at
@@ -143,6 +156,7 @@ Streak, completion %, planned-vs-actual and weak topics are all derived from `sc
 
 ```
 studyflow/
+├── Dockerfile              production image (frontend build + API on one port)
 ├── package.json            npm run setup | dev | test | build | start
 ├── .env.example
 ├── scripts/                cross-platform runners (Windows/macOS/Linux)
@@ -150,15 +164,15 @@ studyflow/
 │   ├── requirements.txt
 │   ├── app/
 │   │   ├── main.py  config.py  db.py  models.py  schemas.py  serializers.py  deps.py
-│   │   ├── routers/        syllabus.py  plan.py  quiz.py  stats.py
-│   │   └── services/       scheduler.py  planning.py  stats.py  pdf.py
+│   │   ├── routers/        auth.py  syllabus.py  plan.py  quiz.py  stats.py
+│   │   └── services/       scheduler.py  planning.py  stats.py  pdf.py  auth.py  usage.py
 │   │       └── ai/         client.py  schemas.py  syllabus.py  quiz.py  review.py  mock.py
 │   └── tests/              scheduler · API flows · AI validation · live-path (stub server)
 ├── frontend/
 │   └── src/
-│       ├── components/     Layout  ProgressRing  CheckButton  ui
-│       ├── pages/          Setup  Today  Calendar  Quiz  Dashboard  Review
-│       └── lib/            api.ts  format.ts
+│       ├── components/     Layout  AccountMenu  ProgressRing  CheckButton  ui
+│       ├── pages/          Auth  Setup  Today  Calendar  Quiz  Dashboard  Review
+│       └── lib/            api.ts  format.ts  install.ts  session.ts
 └── docs/screenshots/
 ```
 
@@ -166,6 +180,8 @@ studyflow/
 
 | Method | Path | Description |
 |---|---|---|
+| `POST` | `/api/auth/signup` · `/login` · `/logout` | Accounts (sets / clears the session cookie) |
+| `GET` / `DELETE` | `/api/auth/me` | Current user + AI usage / delete account and all data |
 | `POST` | `/api/syllabus/parse` | Text → subjects/units/topics (preview, not saved) |
 | `POST` | `/api/syllabus/parse-pdf` | PDF upload → same |
 | `POST` | `/api/plans` | Save the structure + exam date + hours → builds the schedule |
@@ -188,23 +204,69 @@ Interactive docs: http://localhost:8000/docs
 npm test
 ```
 
+- `test_auth.py`: sign up / log in / log out, throttling, forged cookies, **data isolation between users**, account deletion, the daily AI limit.
 - `test_scheduler.py`: capacity limits, interleaving, revision intervals, buffer and final days, overload handling.
 - `test_api.py`: the full user flow including a simulated missed day, re-plan idempotency, quiz flow and review.
 - `test_ai_validation.py`: the AI output contract rejects bad quizzes and reviews. Also covers the demo parser.
 - `test_ai_live_path.py`: runs the **real Anthropic SDK** against a local stub server to check the request shapes (structured output, web search tool, refusal handling, the `pause_turn` resume, validate → retry).
 
-## Deploying
+## Deploy it (free) and make it installable
 
-`npm start` serves the frontend and API from one port, so any host that runs Python + Node works (Render, Railway, Fly.io, a VPS):
+The repo includes a **Dockerfile** and a **Render Blueprint** (`render.yaml` at the repo root). The Blueprint creates the web app and a Postgres database together.
 
-- **Build command:** `npm run setup && npm run build`
-- **Start command:** `HOST=0.0.0.0 npm start`
-- Set `ANTHROPIC_API_KEY` in the host's environment settings, not in a committed file.
-- SQLite lives on local disk. On hosts with ephemeral disks, attach a persistent volume or point `DATABASE_URL` at it.
+### 1. Deploy on Render (~10 minutes)
+
+1. Push this repo to GitHub.
+2. Sign up at [render.com](https://render.com) with your GitHub account.
+3. **New → Blueprint** → select this repository (and the branch you want to deploy).
+4. Render reads `render.yaml` and shows a **studyflow** web service + **studyflow-db** database. It asks for one value:
+   - `ANTHROPIC_API_KEY`: your key from [console.anthropic.com](https://console.anthropic.com/). Leave it empty to launch in demo mode.
+5. Click **Apply**. The first build takes ~5 minutes. Your app is live at `https://studyflow-xxxx.onrender.com`.
+
+`SECRET_KEY` is generated for you, `COOKIE_SECURE` is on, and the database URL is wired in automatically.
+
+> **Free-tier notes:** the free web service sleeps after 15 min idle, so the first visit takes ~30-50 s to wake. Render's free Postgres expires after 30 days. For a database that stays up, create a free one at [neon.tech](https://neon.tech) and paste its connection string into the service's `DATABASE_URL` setting.
+
+### 2. Install it like an app
+
+Open your live URL:
+
+| Device | How |
+|---|---|
+| **Chrome / Edge (Windows, Mac, Linux, Android)** | Click the install icon in the address bar, or the account menu → **Install app** |
+| **iPhone / iPad (Safari)** | Share button → **Add to Home Screen** (the account menu shows this hint) |
+| **Android (Chrome)** | ⋮ menu → **Install app** |
+
+The app opens in its own window with the StudyFlow icon. The app shell is cached by a service worker, so it opens instantly. Your data always comes live from the server.
+
+### Other hosts
+
+The Docker image runs anywhere: Railway, Fly.io, Google Cloud Run, a VPS.
+
+```bash
+docker build -t studyflow .
+docker run -p 8000:8000 \
+  -e DATABASE_URL=postgresql://user:pass@host:5432/studyflow \
+  -e SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(48))") \
+  -e COOKIE_SECURE=true \
+  -e ANTHROPIC_API_KEY=sk-ant-... \
+  studyflow
+```
+
+The container reads `$PORT` when the host provides it, runs as a non-root user, and creates its tables on first start.
+
+## Security
+
+- Passwords are hashed with **scrypt** (salted, memory-hard). They are never stored or logged in plain text.
+- Sessions are signed JWTs in an **httpOnly, SameSite=Lax, Secure** cookie: JavaScript can't read them, and other sites can't use them.
+- Every query is scoped to the logged-in user. A test checks that one user can't read or change another's sessions, topics or quizzes.
+- Login is throttled after repeated failures. Error messages don't reveal which emails are registered.
+- The daily AI limit uses an atomic database update, so parallel requests can't bypass it.
+- The API key lives only in server environment variables and is never sent to the browser.
 
 ## Roadmap
 
-- [ ] Accounts / multi-user (the schema already isolates data per plan)
+- [ ] Password reset by email
 - [ ] Export plan to Google Calendar (.ics)
 - [ ] Pomodoro timer inside a session
 - [ ] Re-weight topics automatically from quiz accuracy

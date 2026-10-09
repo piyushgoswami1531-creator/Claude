@@ -5,10 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..deps import get_today, require_plan
-from ..models import Plan, Review
+from ..deps import current_user, get_today, require_plan
+from ..models import Plan, Review, User
 from ..serializers import review_out
-from ..services import planning, stats
+from ..services import planning, stats, usage
 from ..services.ai import review as ai_review
 
 router = APIRouter(prefix="/api", tags=["stats"])
@@ -22,10 +22,12 @@ def get_stats(plan: Plan = Depends(require_plan), db: Session = Depends(get_db),
 
 
 @router.post("/reviews")
-def create_review(plan: Plan = Depends(require_plan), db: Session = Depends(get_db), today: date = Depends(get_today)):
+def create_review(plan: Plan = Depends(require_plan), user: User = Depends(current_user),
+                  db: Session = Depends(get_db), today: date = Depends(get_today)):
     if planning.auto_replan(db, plan, today):
         plan = planning.load_plan(db, plan.id)
     week = stats.weekly(db, plan, today)
+    usage.charge(db, user, today)
     out = ai_review.generate(week)
     review = Review(
         plan_id=plan.id, week_start=today - timedelta(days=6), stats=week,

@@ -1,13 +1,22 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import App from "./App";
 import { ToastProvider } from "./components/ui";
 import { ApiError } from "./lib/api";
+import { setSession } from "./lib/session";
 import "./index.css";
 
-const queryClient = new QueryClient({
+const onAuthError = (err: unknown) => {
+  if (err instanceof ApiError && err.status === 401 && queryClient.getQueryData(["me"])) {
+    setSession(queryClient, null);
+  }
+};
+
+const queryClient: QueryClient = new QueryClient({
+  queryCache: new QueryCache({ onError: onAuthError }),
+  mutationCache: new MutationCache({ onError: onAuthError }),
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: true,

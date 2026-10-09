@@ -4,6 +4,7 @@ import { BarChart3, CalendarDays, Gavel, Moon, Sun, Sunrise } from "lucide-react
 import { useEffect, useState, type ReactNode } from "react";
 import { NavLink } from "react-router";
 import { api } from "../lib/api";
+import { AccountMenu } from "./AccountMenu";
 
 const NAV = [
   { to: "/today", label: "Today", icon: Sunrise },
@@ -43,7 +44,7 @@ export function ThemeToggle() {
 export function Logo() {
   return (
     <span className="flex items-center gap-2">
-      <span className="grid size-8 place-items-center rounded-lg bg-ink">
+      <span className="grid size-8 place-items-center rounded-lg bg-[#16161d] ring-1 ring-white/10">
         <svg viewBox="0 0 32 32" className="size-5">
           <path d="M7 17.5l5.5 5.5L25 10" fill="none" stroke="var(--accent)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -57,7 +58,7 @@ export function AiBadge() {
   const { data } = useQuery({ queryKey: ["health"], queryFn: api.health, staleTime: Infinity });
   if (!data) return null;
   return data.ai_mode === "live" ? null : (
-    <span title="No ANTHROPIC_API_KEY set: AI features use offline demo logic." className="rounded-full border border-warn/50 px-2.5 py-1 text-xs font-semibold text-warn">
+    <span title="No ANTHROPIC_API_KEY set: AI features use offline demo logic." className="inline-block rounded-full border border-warn/50 px-2.5 py-1 text-xs font-semibold text-warn">
       Demo AI
     </span>
   );
@@ -65,7 +66,7 @@ export function AiBadge() {
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-dvh md:pl-60">
+    <div className="min-h-dvh overflow-x-clip md:pl-60">
       {/* Desktop rail */}
       <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-line bg-surface/70 p-5 backdrop-blur md:flex">
         <Logo />
@@ -82,9 +83,12 @@ export function Layout({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto flex items-center justify-between">
+        <div className="mt-auto space-y-3">
           <AiBadge />
-          <ThemeToggle />
+          <div className="flex items-center justify-between gap-2">
+            <AccountMenu placement="up" />
+            <ThemeToggle />
+          </div>
         </div>
       </aside>
 
@@ -92,8 +96,8 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-paper/85 px-4 py-3 backdrop-blur md:hidden">
         <Logo />
         <div className="flex items-center gap-2">
-          <AiBadge />
           <ThemeToggle />
+          <AccountMenu placement="down" />
         </div>
       </header>
 

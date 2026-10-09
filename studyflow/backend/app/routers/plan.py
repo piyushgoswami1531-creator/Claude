@@ -5,8 +5,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..deps import get_today, require_plan
-from ..models import Plan, ScheduleItem, Topic
+from ..deps import current_user, get_today, require_plan
+from ..models import Plan, ScheduleItem, Topic, User
 from ..schemas import ItemPatch, PlanCreate
 from ..serializers import item_out, plan_out, topic_index
 from ..services import planning
@@ -15,12 +15,13 @@ router = APIRouter(prefix="/api", tags=["plan"])
 
 
 @router.post("/plans")
-def create_plan(body: PlanCreate, db: Session = Depends(get_db), today: date = Depends(get_today)):
+def create_plan(body: PlanCreate, user: User = Depends(current_user), db: Session = Depends(get_db),
+                today: date = Depends(get_today)):
     if body.exam_date <= today:
         raise HTTPException(422, "The exam date must be in the future.")
     if (body.exam_date - today).days > 730:
         raise HTTPException(422, "Pick an exam date within the next two years.")
-    plan = planning.create_plan(db, body, today)
+    plan = planning.create_plan(db, body, today, user.id)
     return plan_out(plan)
 
 

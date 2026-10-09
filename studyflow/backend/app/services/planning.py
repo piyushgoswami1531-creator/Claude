@@ -22,8 +22,10 @@ def load_plan(db: Session, plan_id: int) -> Plan | None:
     )
 
 
-def active_plan(db: Session) -> Plan | None:
-    pid = db.scalar(select(Plan.id).where(Plan.is_active.is_(True)).order_by(Plan.id.desc()))
+def active_plan(db: Session, user_id: int) -> Plan | None:
+    pid = db.scalar(
+        select(Plan.id).where(Plan.user_id == user_id, Plan.is_active.is_(True)).order_by(Plan.id.desc())
+    )
     return load_plan(db, pid) if pid else None
 
 
@@ -36,12 +38,12 @@ def iter_topics(plan: Plan):
                 order += 1
 
 
-def create_plan(db: Session, data, today: date) -> Plan:
+def create_plan(db: Session, data, today: date, user_id: int) -> Plan:
     """`data` is the validated PlanCreate request model."""
-    for old in db.scalars(select(Plan).where(Plan.is_active.is_(True))):
+    for old in db.scalars(select(Plan).where(Plan.user_id == user_id, Plan.is_active.is_(True))):
         old.is_active = False
 
-    plan = Plan(exam_date=data.exam_date, daily_minutes=round(data.daily_hours * 60), is_active=True, version=0)
+    plan = Plan(user_id=user_id, exam_date=data.exam_date, daily_minutes=round(data.daily_hours * 60), is_active=True, version=0)
     for si, s in enumerate(data.subjects):
         subject = Subject(name=s.name, strength=s.strength, color=f"c{si % PALETTE_SLOTS + 1}", position=si)
         for ui, u in enumerate(s.units):

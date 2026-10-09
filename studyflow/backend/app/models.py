@@ -1,15 +1,40 @@
 from datetime import date, datetime
 
-from sqlalchemy import JSON, CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(254), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    password_hash: Mapped[str] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    plans: Mapped[list["Plan"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+class AiUsage(Base):
+    """How many Claude calls a user made on a given day (for the daily limit)."""
+
+    __tablename__ = "ai_usage"
+    __table_args__ = (UniqueConstraint("user_id", "day"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    day: Mapped[date] = mapped_column(Date)
+    count: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Plan(Base):
     __tablename__ = "plans"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=True)
     exam_date: Mapped[date] = mapped_column(Date)
     daily_minutes: Mapped[int] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(default=True)
@@ -18,6 +43,7 @@ class Plan(Base):
     required_daily_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
+    user: Mapped[User | None] = relationship(back_populates="plans")
     subjects: Mapped[list["Subject"]] = relationship(
         back_populates="plan", cascade="all, delete-orphan", order_by="Subject.position"
     )

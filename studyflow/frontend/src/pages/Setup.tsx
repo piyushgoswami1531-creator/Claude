@@ -1,8 +1,9 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, FileUp, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
+import { AccountMenu } from "../components/AccountMenu";
 import { AiBadge, Logo, ThemeToggle } from "../components/Layout";
 import { Button, ErrorBox, Eyebrow } from "../components/ui";
 import { api, type ParsedSubject, type Strength } from "../lib/api";
@@ -33,6 +34,7 @@ export default function Setup() {
   const [examDate, setExamDate] = useState(isoDate(addDays(new Date(), 30)));
   const [hours, setHours] = useState(3);
   const fileRef = useRef<HTMLInputElement>(null);
+  const existing = useQuery({ queryKey: ["plan"], queryFn: api.plan, retry: false });
 
   const go = (n: number) => {
     setDir(n > step ? 1 : -1);
@@ -72,12 +74,18 @@ export default function Setup() {
     });
 
   return (
-    <div className="min-h-dvh">
+    <div className="min-h-dvh overflow-x-clip">
       <header className="mx-auto flex max-w-3xl items-center justify-between px-4 py-5 sm:px-6">
         <Logo />
         <div className="flex items-center gap-2">
-          <AiBadge />
+          {existing.data && (
+            <Link to="/today" className="hidden rounded-full px-3 py-2 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink sm:inline">
+              Back to my plan
+            </Link>
+          )}
+          <span className="hidden sm:inline"><AiBadge /></span>
           <ThemeToggle />
+          <AccountMenu placement="down" />
         </div>
       </header>
 
