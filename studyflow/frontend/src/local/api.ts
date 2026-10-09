@@ -3,10 +3,12 @@
  * response shapes as the FastAPI routes, backed by the in-page store.
  */
 import type { Api, Item, Me, Plan, Quiz, Review, TodayView } from "../lib/api";
+import { IS_STANDALONE } from "../lib/env";
 import { ApiError } from "../lib/errors";
 import * as ai from "./ai";
 import { dayOf, isoOf, nowStamp, todayDay } from "./days";
 import * as planning from "./planning";
+import { getSettings } from "./settings";
 import * as stats from "./stats";
 import { init, newId, persist, state, viewer, type ItemRow, type QuizRow, type ReviewRow } from "./store";
 
@@ -88,7 +90,8 @@ export const localApi: Api = {
   async me(): Promise<Me> {
     await init();
     return {
-      id: 0, email: "", name: viewer.name || "Student", ai: { mode: await ai.aiMode(), limit: null, used_today: 0 },
+      id: 0, email: "", name: (IS_STANDALONE ? getSettings().name : viewer.name) || "Student",
+      ai: { mode: await ai.aiMode(), limit: null, used_today: 0 },
       storage: viewer.storage === "cloud" ? "cloud" : "device",
     };
   },
@@ -105,8 +108,17 @@ export const localApi: Api = {
   health: async () => ({ ai_mode: await ai.aiMode(), model: "claude", daily_ai_limit: null }),
 
   parseText: async (text) => ai.parseSyllabus(text),
-  parsePdf: async () => {
-    throw new ApiError(415, "PDF upload isn't available in the phone version. Copy the text from your PDF and paste it instead.");
+  async parsePdf(file) {
+    if (!(await ai.canReadPdf())) {
+      throw new ApiError(415, IS_STANDALONE
+        ? "Reading PDFs needs your Claude API key (account menu → Settings). Or copy the text from the PDF and paste it."
+        : "PDF upload isn't available in this version. Copy the text from your PDF and paste it instead.");
+    }
+    if (file.size > 20 * 1024 * 1024) throw new ApiError(413, "PDF is larger than 20 MB.");
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return ai.parseSyllabusPdf(btoa(bin));
   },
 
   createPlan: (body) =>
@@ -183,12 +195,12 @@ export const localApi: Api = {
     const subject = state.subjects.find((s) => s.id === unit.subject_id)!;
     const attempt = state.quizzes.filter((q) => q.topic_id === topic.id).length;
     // Generation can take a minute; only the save is serialized, so the rest of the app stays responsive.
-    const questions = await ai.generateQuiz(subject.name, unit.name, topic.name, attempt);
+    const { questions, sources } = await ai.generateQuiz(subject.name, unit.name, topic.name, attempt);
     return serial(() => {
       if (state.plan?.id !== plan.id) throw new ApiError(409, "Your plan changed while the quiz was being written.");
       const quiz: QuizRow = {
         id: newId(), plan_id: plan.id, topic_id: topic.id, created_at: nowStamp(), submitted_at: null, score: null,
-        total: questions.length, sources: [],
+        total: questions.length, sources,
         questions: questions.map((q, i) => ({
           id: newId(), position: i, difficulty: q.difficulty, stem: q.question, options: q.options,
           correct_index: q.correct_index, explanation: q.explanation, chosen_index: null,

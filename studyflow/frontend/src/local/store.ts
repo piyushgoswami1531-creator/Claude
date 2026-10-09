@@ -251,3 +251,29 @@ export function init(): Promise<void> {
 }
 
 export { StoreFullError };
+
+// ------------------------------------------------------------ backup file ---
+const BACKUP_KIND = "studyflow-backup";
+
+/** Everything needed to restore this device's data on another device. */
+export function exportData() {
+  return { kind: BACKUP_KIND, version: 1, exported_at: new Date().toISOString(), ...stateBody(), ...scheduleBody(), quizzes: state.quizzes, reviews: state.reviews };
+}
+
+/** Replace all data with a backup file's contents (after basic shape checks). */
+export async function importData(raw: unknown): Promise<void> {
+  const d = raw as Record<string, unknown>;
+  const ok =
+    d && d.kind === BACKUP_KIND && Array.isArray(d.subjects) && Array.isArray(d.units) && Array.isArray(d.topics) &&
+    Array.isArray(d.items) && Array.isArray(d.quizzes) && Array.isArray(d.reviews);
+  if (!ok) throw new Error("That file isn't a StudyFlow backup.");
+  await backend.wipe();
+  applyState(d);
+  applySchedule(d);
+  state.quizzes = d.quizzes as QuizRow[];
+  state.reviews = d.reviews as ReviewRow[];
+  backend.saveState();
+  backend.saveSchedule();
+  for (const q of state.quizzes) backend.saveQuiz(q);
+  for (const r of state.reviews) backend.saveReview(r);
+}

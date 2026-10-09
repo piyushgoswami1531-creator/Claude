@@ -9,3 +9,4 @@ __pycache__/
 .DS_Store
 backend/.secret_key
 dist-artifact/
+dist-netlify/

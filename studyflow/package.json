@@ -8,7 +8,9 @@
     "dev": "node scripts/dev.mjs",
     "test": "node scripts/run.mjs test",
     "build": "npm --prefix frontend run build",
-    "start": "node scripts/run.mjs start"
+    "start": "node scripts/run.mjs start",
+    "build:netlify": "npm --prefix frontend run build:netlify",
+    "build:artifact": "npm --prefix frontend run build:artifact"
   },
   "engines": {
     "node": ">=18"

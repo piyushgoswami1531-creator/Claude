@@ -210,6 +210,10 @@ npm test
 - `test_ai_validation.py`: the AI output contract rejects bad quizzes and reviews. Also covers the demo parser.
 - `test_ai_live_path.py`: runs the **real Anthropic SDK** against a local stub server to check the request shapes (structured output, web search tool, refusal handling, the `pause_turn` resume, validate → retry).
 
+## Host it on Netlify (static, works offline)
+
+Netlify can't run the Python server, so StudyFlow has a **standalone build** that runs entirely in the browser: data on each device, AI with each user's own key, installable and offline-capable. `npm run build:netlify` → drag `frontend/dist-netlify/` onto [app.netlify.com/drop](https://app.netlify.com/drop). **Full step-by-step guide: [NETLIFY.md](NETLIFY.md).**
+
 ## Deploy it (free) and make it installable
 
 The repo includes a **Dockerfile** and a **Render Blueprint** (`render.yaml` at the repo root). The Blueprint creates the web app and a Postgres database together.

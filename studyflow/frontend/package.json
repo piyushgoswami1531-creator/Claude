@@ -8,9 +8,11 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "preview": "vite preview",
-    "build:artifact": "tsc -b && vite build --mode artifact && node scripts/to-artifact.mjs"
+    "build:artifact": "tsc -b && vite build --mode artifact && node scripts/to-artifact.mjs",
+    "build:netlify": "tsc -b && vite build --mode standalone && node scripts/netlify-extras.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
     "@tanstack/react-query": "^5.80.0",
     "framer-motion": "^12.20.0",
     "lucide-react": "^0.577.0",

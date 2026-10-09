@@ -7,7 +7,7 @@ import { AccountMenu } from "../components/AccountMenu";
 import { AiBadge, Logo, ThemeToggle } from "../components/Layout";
 import { Button, ErrorBox, Eyebrow } from "../components/ui";
 import { api, type ParsedSubject, type Strength } from "../lib/api";
-import { IS_ARTIFACT } from "../lib/env";
+import { IS_ARTIFACT, IS_LOCAL, IS_STANDALONE } from "../lib/env";
 import { addDays, isoDate, minutes, parseDate } from "../lib/format";
 
 const STEPS = ["Syllabus", "Check topics", "Exam & time", "Strengths"];
@@ -189,7 +189,7 @@ export default function Setup() {
                 <h1 className="font-display text-4xl sm:text-5xl">Does this look right?</h1>
                 <p className="mt-2 text-ink-2">
                   Rename, remove, or adjust difficulty. Harder topics get more time.
-                  {source === "demo" && <span className="text-warn"> Parsed with the offline demo parser. {IS_ARTIFACT ? "Allow Claude when asked for smarter parsing." : "Add an API key for smarter parsing."}</span>}
+                  {source === "demo" && <span className="text-warn"> Parsed with the offline demo parser. {IS_ARTIFACT ? "Allow Claude when asked for smarter parsing." : IS_STANDALONE ? "Add your Claude API key (account menu → Settings) for smarter parsing." : "Add an API key for smarter parsing."}</span>}
                 </p>
                 <div className="mt-6 space-y-4">
                   {subjects.map((s, si) => (
@@ -256,7 +256,7 @@ export default function Setup() {
                       type="date"
                       value={examDate}
                       min={isoDate(addDays(new Date(), 1))}
-                      max={IS_ARTIFACT ? isoDate(addDays(new Date(), 365)) : undefined}
+                      max={IS_LOCAL ? isoDate(addDays(new Date(), 365)) : undefined}
                       onChange={(e) => setExamDate(e.target.value)}
                       className="num mt-2 block w-full bg-transparent text-2xl outline-none"
                     />

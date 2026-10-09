@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { NavLink } from "react-router";
 import { api } from "../lib/api";
 import { AccountMenu } from "./AccountMenu";
-import { IS_ARTIFACT } from "../lib/env";
+import { IS_ARTIFACT, IS_STANDALONE } from "../lib/env";
 
 const NAV = [
   { to: "/today", label: "Today", icon: Sunrise },
@@ -64,7 +64,7 @@ export function AiBadge() {
   const { data } = useQuery({ queryKey: ["health"], queryFn: api.health, staleTime: Infinity });
   if (!data) return null;
   return data.ai_mode === "live" ? null : (
-    <span title={IS_ARTIFACT ? "Claude isn't available here, so quizzes and reviews use offline demo logic." : "No ANTHROPIC_API_KEY set: AI features use offline demo logic."} className="inline-block rounded-full border border-warn/50 px-2.5 py-1 text-xs font-semibold text-warn">
+    <span title={IS_ARTIFACT ? "Claude isn't available here, so quizzes and reviews use offline demo logic." : IS_STANDALONE ? "No API key yet: add yours in the account menu → Settings for real AI." : "No ANTHROPIC_API_KEY set: AI features use offline demo logic."} className="inline-block rounded-full border border-warn/50 px-2.5 py-1 text-xs font-semibold text-warn">
       Demo AI
     </span>
   );

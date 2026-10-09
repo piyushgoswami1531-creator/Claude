@@ -1,13 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { Download, LogOut, Share, Trash2, X } from "lucide-react";
+import { Download, FileDown, FileUp, LogOut, Settings as SettingsIcon, Share, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router";
 import { api, type Me } from "../lib/api";
-import { IS_ARTIFACT } from "../lib/env";
+import { IS_ARTIFACT, IS_LOCAL, IS_STANDALONE } from "../lib/env";
 import { useInstall } from "../lib/install";
 import { setSession } from "../lib/session";
-import { Button } from "./ui";
+import { SettingsDialog } from "./SettingsDialog";
+import { Button, useToast } from "./ui";
 
 export function AccountMenu({ placement = "up" }: { placement?: "up" | "down" }) {
   const qc = useQueryClient();
@@ -17,6 +19,34 @@ export function AccountMenu({ placement = "up" }: { placement?: "up" | "down" })
   const ref = useRef<HTMLDivElement>(null);
   const install = useInstall();
   const [iosHelp, setIosHelp] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const importRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
+  const navigate = useNavigate();
+
+  // Standalone build only: data lives on this device, so let people back it up.
+  const exportBackup = async () => {
+    const { exportData } = await import("../local/store");
+    const blob = new Blob([JSON.stringify(exportData())], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `studyflow-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    setOpen(false);
+  };
+  const importBackup = async (file: File) => {
+    try {
+      const { importData } = await import("../local/store");
+      await importData(JSON.parse(await file.text()));
+      void qc.resetQueries();
+      navigate("/today");
+      toast({ text: "Backup restored." });
+    } catch (e) {
+      toast({ text: e instanceof SyntaxError ? "That file isn't a StudyFlow backup." : (e as Error).message });
+    }
+    setOpen(false);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -65,7 +95,7 @@ export function AccountMenu({ placement = "up" }: { placement?: "up" | "down" })
             <div className="px-3 py-2">
               <p className="truncate font-semibold">{me.name}</p>
               <p className="truncate text-xs text-ink-3">
-                {IS_ARTIFACT ? (me.storage === "cloud" ? "Saved privately to your Claude account" : "Saved on this device only") : me.email}
+                {IS_LOCAL ? (me.storage === "cloud" ? "Saved privately to your Claude account" : "Saved on this device only") : me.email}
               </p>
             </div>
             <AiUsage me={me} />
@@ -85,26 +115,60 @@ export function AccountMenu({ placement = "up" }: { placement?: "up" | "down" })
                 In Safari, tap the <b>Share</b> button, then <b>Add to Home Screen</b>.
               </p>
             )}
-            {!IS_ARTIFACT && (
+            {IS_STANDALONE && (
+              <>
+                <MenuItem icon={<SettingsIcon className="size-4" />} onClick={() => { setOpen(false); setSettingsOpen(true); }}>
+                  Settings & API key
+                </MenuItem>
+                <MenuItem icon={<FileDown className="size-4" />} onClick={exportBackup}>
+                  Export backup
+                </MenuItem>
+                <MenuItem icon={<FileUp className="size-4" />} onClick={() => importRef.current?.click()}>
+                  Import backup
+                </MenuItem>
+                <input
+                  ref={importRef}
+                  type="file"
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (f) void importBackup(f);
+                  }}
+                />
+              </>
+            )}
+            {!IS_LOCAL && (
               <MenuItem icon={<LogOut className="size-4" />} onClick={() => logout.mutate()}>
                 Log out
               </MenuItem>
             )}
             <MenuItem icon={<Trash2 className="size-4" />} danger onClick={() => { setOpen(false); setConfirmDelete(true); }}>
-              {IS_ARTIFACT ? "Erase my data" : "Delete account"}
+              {IS_LOCAL ? "Erase my data" : "Delete account"}
             </MenuItem>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {createPortal(<AnimatePresence>{confirmDelete && <DeleteDialog onClose={() => setConfirmDelete(false)} />}</AnimatePresence>, document.body)}
+      {createPortal(
+        <AnimatePresence>
+          {confirmDelete && <DeleteDialog onClose={() => setConfirmDelete(false)} />}
+          {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
 }
 
 function AiUsage({ me }: { me: Me }) {
   if (me.ai.mode === "demo") {
-    return <p className="mx-3 mb-2 rounded-xl bg-warn/10 px-3 py-2 text-xs text-ink-2">Demo AI: offline quizzes and reviews.</p>;
+    return (
+      <p className="mx-3 mb-2 rounded-xl bg-warn/10 px-3 py-2 text-xs text-ink-2">
+        Demo AI: offline quizzes and reviews.{IS_STANDALONE && " Add your Claude API key in Settings for the real thing."}
+      </p>
+    );
   }
   if (!me.ai.limit) return null;
   const left = Math.max(0, me.ai.limit - me.ai.used_today);
@@ -140,7 +204,7 @@ function DeleteDialog({ onClose }: { onClose: () => void }) {
   const del = useMutation({
     mutationFn: () => api.deleteAccount(password),
     onSuccess: () => {
-      if (IS_ARTIFACT) {
+      if (IS_LOCAL) {
         // No account to sign out of: drop the cached plan and start over at setup.
         // resetQueries (unlike removeQueries) keeps mounted screens subscribed, so they reload into setup.
         void qc.resetQueries({ predicate: (q) => q.queryKey[0] !== "me" });
@@ -161,12 +225,12 @@ function DeleteDialog({ onClose }: { onClose: () => void }) {
         className="card w-full max-w-sm p-6"
       >
         <div className="flex items-start justify-between">
-          <h2 id="del-title" className="font-display text-3xl">{IS_ARTIFACT ? "Erase your data?" : "Delete account?"}</h2>
+          <h2 id="del-title" className="font-display text-3xl">{IS_LOCAL ? "Erase your data?" : "Delete account?"}</h2>
           <button aria-label="Close" onClick={onClose} className="rounded-full p-1 text-ink-3 hover:text-ink">
             <X className="size-4" />
           </button>
         </div>
-        <p className="mt-2 text-sm text-ink-2">This permanently deletes your {IS_ARTIFACT ? "plan" : "plans"}, quiz scores and reviews. It can't be undone.</p>
+        <p className="mt-2 text-sm text-ink-2">This permanently deletes your {IS_LOCAL ? "plan" : "plans"}, quiz scores and reviews. It can't be undone.</p>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -174,7 +238,7 @@ function DeleteDialog({ onClose }: { onClose: () => void }) {
           }}
           className="mt-4 space-y-3"
         >
-          {!IS_ARTIFACT && <input
+          {!IS_LOCAL && <input
             type="password"
             autoComplete="current-password"
             placeholder="Your password"
@@ -187,8 +251,8 @@ function DeleteDialog({ onClose }: { onClose: () => void }) {
           {del.error && <p className="text-sm text-bad">{del.error.message}</p>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button type="submit" loading={del.isPending} disabled={!IS_ARTIFACT && !password} className="!bg-bad !text-white">
-              {IS_ARTIFACT ? "Erase everything" : "Delete forever"}
+            <Button type="submit" loading={del.isPending} disabled={!IS_LOCAL && !password} className="!bg-bad !text-white">
+              {IS_LOCAL ? "Erase everything" : "Delete forever"}
             </Button>
           </div>
         </form>
