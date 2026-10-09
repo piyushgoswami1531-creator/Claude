@@ -1,7 +1,7 @@
 """SQLite storage for campaigns and creator submissions.
 
-This is the single source of truth for payments. Later phases (query agent,
-Google Sheets sync, reel verification) read and write through this module.
+This is the single source of truth for payments. The query agent, reel
+verification and payment planner all read and write through this module.
 """
 
 import sqlite3
@@ -12,6 +12,31 @@ STATUSES = ("submitted", "approved", "scheduled", "paid", "issue")
 # Statuses where the creator is still waiting for money.
 OPEN_STATUSES = ("submitted", "approved", "scheduled")
 OVERDUE_AFTER = timedelta(hours=48)
+IST = timezone(timedelta(hours=5, minutes=30))
+DEFAULT_DAILY_LIMIT = 100_000  # ₹; typical per-account UPI limit, change in admin
+
+
+
+def inr(amount) -> str:
+    """Indian digit grouping: 119000 -> '1,19,000'."""
+    if amount is None:
+        return ""
+    sign, digits = ("-", str(-int(amount))) if int(amount) < 0 else ("", str(int(amount)))
+    if len(digits) <= 3:
+        return sign + digits
+    head, tail = digits[:-3], digits[-3:]
+    groups = []
+    while len(head) > 2:
+        groups.insert(0, head[-2:])
+        head = head[:-2]
+    if head:
+        groups.insert(0, head)
+    return sign + ",".join(groups) + "," + tail
+
+
+# Result of the automatic reel check (Phase 3).
+# unchecked: not checked yet. passed / failed: checked. error: check couldn't run, retry.
+VERIFY_STATUSES = ("unchecked", "passed", "failed", "error")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS campaigns (
@@ -64,7 +89,25 @@ CREATE TABLE IF NOT EXISTS tickets (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tickets_sender ON tickets (name, contact);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key    TEXT PRIMARY KEY,
+    value  TEXT NOT NULL
+);
 """
+
+# Columns added after Phase 1/2. Applied to new and existing databases alike,
+# so a database created by an earlier version upgrades in place.
+MIGRATIONS = [
+    ("campaigns", "audio_id", "TEXT NOT NULL DEFAULT ''"),
+    ("submissions", "verify_status", "TEXT NOT NULL DEFAULT 'unchecked'"),
+    ("submissions", "verify_notes", "TEXT NOT NULL DEFAULT ''"),
+    ("submissions", "verified_at", "TEXT"),
+    ("submissions", "views", "INTEGER"),
+    ("submissions", "likes", "INTEGER"),
+    ("submissions", "comments", "INTEGER"),
+    ("submissions", "audio_name", "TEXT NOT NULL DEFAULT ''"),
+]
 
 # answered: the agent replied and nothing needs the team.
 # escalated: waiting on the core team. resolved: the team closed it.
@@ -88,6 +131,10 @@ class Database:
         self.path = path
         with self.connect() as conn:
             conn.executescript(SCHEMA)
+            for table, column, ddl in MIGRATIONS:
+                existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+                if column not in existing:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
 
     @contextmanager
     def connect(self):
@@ -102,12 +149,14 @@ class Database:
 
     # --- campaigns ---------------------------------------------------------
 
-    def create_campaign(self, name: str, song: str, client: str, default_amount: int) -> int:
+    def create_campaign(
+        self, name: str, song: str, client: str, default_amount: int, audio_id: str = ""
+    ) -> int:
         with self.connect() as conn:
             cur = conn.execute(
-                "INSERT INTO campaigns (name, song, client, default_amount, created_at)"
-                " VALUES (?, ?, ?, ?, ?)",
-                (name, song, client, default_amount, to_iso(now_utc())),
+                "INSERT INTO campaigns (name, song, client, default_amount, audio_id, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (name, song, client, default_amount, audio_id, to_iso(now_utc())),
             )
             return cur.lastrowid
 
@@ -225,6 +274,91 @@ class Database:
                 " ORDER BY s.submitted_at ASC",
                 (*OPEN_STATUSES, cutoff),
             ).fetchall()
+
+    # --- reel verification -------------------------------------------------
+
+    def pending_verification(self, limit: int = 50) -> list[sqlite3.Row]:
+        """Submitted reels not yet checked, or whose last check couldn't run."""
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT s.*, c.name AS campaign_name, c.song AS campaign_song,"
+                " c.audio_id AS campaign_audio_id"
+                " FROM submissions s JOIN campaigns c ON c.id = s.campaign_id"
+                " WHERE s.status = 'submitted' AND s.verify_status IN ('unchecked', 'error')"
+                " ORDER BY s.submitted_at ASC LIMIT ?",
+                (limit,),
+            ).fetchall()
+
+    def record_verification(
+        self, submission_id: int, verify_status: str, notes: str, *,
+        views: int | None = None, likes: int | None = None, comments: int | None = None,
+        audio_name: str = "", approve: bool = False,
+    ) -> None:
+        if verify_status not in VERIFY_STATUSES:
+            raise ValueError(f"Invalid verify status: {verify_status}")
+        ts = to_iso(now_utc())
+        with self.connect() as conn:
+            conn.execute(
+                "UPDATE submissions SET verify_status = ?, verify_notes = ?, verified_at = ?,"
+                " views = COALESCE(?, views), likes = COALESCE(?, likes),"
+                " comments = COALESCE(?, comments), audio_name = ?, updated_at = ?"
+                " WHERE id = ?",
+                (verify_status, notes, ts, views, likes, comments, audio_name, ts,
+                 submission_id),
+            )
+            if approve:
+                # Only moves reels that are still 'submitted', never overrides the team.
+                conn.execute(
+                    "UPDATE submissions SET status = 'approved' WHERE id = ? AND status = 'submitted'",
+                    (submission_id,),
+                )
+
+    # --- payouts -----------------------------------------------------------
+
+    def get_daily_limit(self) -> int:
+        with self.connect() as conn:
+            row = conn.execute("SELECT value FROM settings WHERE key = 'daily_limit'").fetchone()
+        return int(row["value"]) if row else DEFAULT_DAILY_LIMIT
+
+    def set_daily_limit(self, amount: int) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO settings (key, value) VALUES ('daily_limit', ?)"
+                " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (str(amount),),
+            )
+
+    def payout_queue(self) -> list[sqlite3.Row]:
+        """Approved/scheduled payments, oldest submission first."""
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT s.*, c.name AS campaign_name FROM submissions s"
+                " JOIN campaigns c ON c.id = s.campaign_id"
+                " WHERE s.status IN ('approved', 'scheduled')"
+                " ORDER BY s.submitted_at ASC, s.id ASC"
+            ).fetchall()
+
+    def paid_since(self, since: datetime) -> int:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT COALESCE(SUM(amount), 0) FROM submissions"
+                " WHERE status = 'paid' AND paid_at >= ?",
+                (to_iso(since.astimezone(timezone.utc)),),
+            ).fetchone()[0]
+
+    def mark_paid(self, submission_ids: list[int]) -> int:
+        """Bulk-mark approved/scheduled payments as paid. Returns how many changed."""
+        if not submission_ids:
+            return 0
+        ts = to_iso(now_utc())
+        placeholders = ",".join("?" for _ in submission_ids)
+        with self.connect() as conn:
+            cur = conn.execute(
+                f"UPDATE submissions SET status = 'paid', paid_at = ?, updated_at = ?"
+                f" WHERE id IN ({placeholders}) AND status IN ('approved', 'scheduled')",
+                (ts, ts, *submission_ids),
+            )
+            return cur.rowcount
 
     # --- tickets -----------------------------------------------------------
 

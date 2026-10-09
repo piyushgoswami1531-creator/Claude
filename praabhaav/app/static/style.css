@@ -168,3 +168,14 @@ a.stat { text-decoration: none; color: inherit; }
 .badge-p-high, .badge-t-escalated { background: var(--error-bg); color: var(--error-text); }
 .badge-t-answered { background: #e3dcff; color: #3b1fc4; }
 .badge-t-resolved { background: #d7f5e1; color: #13692f; }
+
+.badge-v-passed { background: #d7f5e1; color: #13692f; }
+.badge-v-failed { background: var(--error-bg); color: var(--error-text); }
+.badge-v-error { background: var(--overdue-bg); }
+.reel-check { max-width: 240px; }
+.verify-notes { font-size: 0.8rem; color: var(--error-text); }
+.inline-form .grow { flex: 1; min-width: 220px; }
+
+.limit-bar { height: 10px; border-radius: 999px; background: var(--border); overflow: hidden; margin: 8px 0 4px; }
+.limit-bar span { display: block; height: 100%; background: var(--accent); }
+.day-list li { margin-bottom: 6px; }

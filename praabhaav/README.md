@@ -1,6 +1,6 @@
 # Praabhaav Creator Payments
 
-A payment tracker and AI query desk for Praabhaav, a music marketing company. Creators post reels on a client's song and get paid over UPI. This app records every creator, reel and payment in one place, lets creators check their own payment status, and uses a Claude-powered agent to answer creator and client queries. It escalates anything that needs a human to the core team on Telegram.
+An operations app for Praabhaav, a music marketing company. Creators post reels on a client's song and get paid over UPI. This app records every creator, reel and payment in one place. It **checks each reel automatically** (live? right creator? right song?) and **plans payouts around the daily UPI limit**, so every creator sees an expected payment date. A Claude-powered agent answers creator and client queries and escalates anything that needs a human to the core team on Telegram.
 
 See [Roadmap](#roadmap) for what's built and what's next.
 
@@ -11,6 +11,10 @@ See [Roadmap](#roadmap) for what's built and what's next.
 | Ask a question | Instant answer from the tracker | Team: escalated queries |
 |---|---|---|
 | ![query](docs/4-query-mobile.png) | ![answer](docs/5-query-answer-mobile.png) | ![queries](docs/6-admin-queries.png) |
+
+| Team: payment planner | Team: automatic reel checks | Creator: expected payment date |
+|---|---|---|
+| ![payouts](docs/7-payouts.png) | ![checks](docs/8-admin-reel-checks.png) | ![expected](docs/9-status-expected.png) |
 
 ## What it does
 
@@ -33,6 +37,20 @@ See [Roadmap](#roadmap) for what's built and what's next.
 - **Daily summary** (pending ₹, overdue creators, open queries) sent to Telegram: `python -m app.digest` on a schedule, or the button in `/admin/tickets`.
 - Works without keys: no `ANTHROPIC_API_KEY` means keyword rules instead of Claude, and no Telegram config means alerts are written to the server log.
 
+**Reel verification (Phase 3):**
+- When adding a campaign, paste the song's **Instagram audio link** (open the song on Instagram → copy link, e.g. `instagram.com/reels/audio/123…`). Without it, the check matches the song name instead, which is less exact.
+- [`app/reels.py`](app/reels.py) fetches every `submitted` reel through the [Apify Instagram Reel Scraper](https://apify.com/apify/instagram-reel-scraper) (one run per 20 reels, about $0.003 per reel) and checks: the reel exists, it was **posted by the creator who submitted it**, and it **uses the campaign audio**.
+- Passing reels are **approved automatically**, which puts them in the payment queue. Failing reels are **never rejected automatically**: they stay `submitted` with the reasons shown in admin (e.g. "Posted by @karan.official, not @karan.moves"), and the team gets one Telegram summary.
+- Views, likes and comments are saved, ready for client reports.
+- Run on a schedule (`python -m app.reels`) or with **Check pending reels now** in admin.
+
+**Payment planner (`/admin/payouts`, Phase 3):**
+- Set the daily UPI limit (default ₹1,00,000). The planner fills each day **strictly oldest-first**, the order the FAQ promises, counting what's already been paid today.
+- Today's batch shows creator, UPI ID and amount: pay them, untick any that failed, then **Mark ticked as paid**. Download it as CSV for bulk payout tools.
+- Upcoming days show who gets paid when. A payment bigger than the whole daily limit is flagged so you can split it or pay by bank transfer.
+- Every creator sees an **expected payment date** on the status page, and the query agent uses it, so "when will I be paid?" gets a real date.
+- The daily summary includes today's batch and when the queue clears.
+
 **Validation built in:** Indian mobile numbers (accepts `+91`, spaces, leading 0), UPI ID format, Instagram reel links (tracking params stripped), and one submission per creator per campaign.
 
 ## Run it locally
@@ -48,6 +66,7 @@ export PRAABHAAV_DB=praabhaav.db     # optional, SQLite file path
 export ANTHROPIC_API_KEY=...         # optional, enables the Claude query agent
 export TELEGRAM_BOT_TOKEN=...        # optional, escalation alerts + daily summary
 export TELEGRAM_CHAT_ID=...
+export APIFY_TOKEN=...               # optional, automatic reel checks
 
 uvicorn app.main:create_app --factory --reload
 ```
@@ -59,8 +78,11 @@ Open http://localhost:8000/admin, create a campaign, then copy its creator link.
 **Daily summary at 9:30 IST** (cron on the server, or a scheduled job on your host):
 
 ```
-30 9 * * *  cd /path/to/praabhaav && python -m app.digest
+30 9 * * *    cd /path/to/praabhaav && python -m app.digest
+*/30 * * * *  cd /path/to/praabhaav && python -m app.reels    # reel checks every 30 min
 ```
+
+**Apify setup:** create a free account at apify.com, then copy your API token from Settings → API & Integrations. Checks cost about $0.003 per reel (see Apify's pricing page for your plan).
 
 Run tests:
 
@@ -77,6 +99,8 @@ app/
   agent.py        query agent: Claude call, fallback rules, escalation policy
   notify.py       Telegram alerts
   digest.py       daily summary
+  reels.py        reel verification via Apify
+  planner.py      payout planner (daily UPI limit, oldest-first)
   knowledge/faq.md  what the agent is allowed to tell people (edit this)
   validation.py   cleaning/validation of phone, UPI, IG handle, reel URL
   templates/      Jinja2 HTML pages
@@ -97,5 +121,7 @@ tests/            pytest suite
 
 1. **Tracker + submission form + status page**: ✅
 2. **Query agent + Telegram escalation + daily summary**: ✅
-3. **Agentic automation**: verify reels automatically (live? correct audio?) via an Instagram scraper; payment planner that splits the queue across days given the UPI daily limit and tells each creator their date.
+3. **Reel verification + payment planner**: ✅
 4. **Chat front-ends**: WhatsApp / Instagram DM bot on top of the same backend.
+5. **Client reports**: per-campaign views/likes report for artists and labels (the data is already collected by the reel checks).
+6. **Payout API**: pay today's batch through RazorpayX / Cashfree Payouts instead of manual UPI, removing the daily limit problem at the source.

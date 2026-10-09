@@ -4,10 +4,7 @@
 {% block content %}
 <div class="toolbar">
   <h1>Queries</h1>
-  <nav class="admin-nav">
-    <a href="/admin">Payments</a>
-    <a href="/admin/tickets" aria-current="page">Queries ({{ stats.open_tickets }} open)</a>
-  </nav>
+  {% set active = 'queries' %}{% include "_admin_nav.html" %}
 </div>
 <p class="muted">Agent: {{ agent_mode }} · Telegram alerts: {{ 'on' if telegram_on else 'off (alerts go to the server log)' }}</p>
 

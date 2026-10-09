@@ -66,3 +66,21 @@ def clean_message(raw: str) -> str:
     if len(message) > 2000:
         raise ValueError("Please keep your message under 2000 characters.")
     return message
+
+
+AUDIO_URL_RE = re.compile(r"instagram\.com/reels?/audio/(\d+)")
+
+
+def clean_audio(raw: str) -> str:
+    """Instagram audio link (or bare audio ID) -> audio ID. Empty input is allowed."""
+    raw = raw.strip()
+    if not raw:
+        return ""
+    if raw.isdigit():
+        return raw
+    m = AUDIO_URL_RE.search(raw)
+    if not m:
+        raise ValueError(
+            "Paste the Instagram audio link, e.g. https://www.instagram.com/reels/audio/1234567890/"
+        )
+    return m.group(1)

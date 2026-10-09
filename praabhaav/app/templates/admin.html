@@ -4,15 +4,15 @@
 {% block content %}
 <div class="toolbar">
   <h1>Payments tracker</h1>
-  <nav class="admin-nav">
-    <a href="/admin" aria-current="page">Payments</a>
-    <a href="/admin/tickets">Queries ({{ stats.open_tickets }} open)</a>
-  </nav>
+  {% set active = 'payments' %}{% include "_admin_nav.html" %}
 </div>
+{% if verifying %}
+<div class="alert alert-info">Checking pending reels now. Refresh in a minute to see results.</div>
+{% endif %}
 
 <section class="stats">
   <div class="stat"><span class="stat-num">{{ stats.pending }}</span><span>Waiting for payment</span></div>
-  <div class="stat"><span class="stat-num">₹{{ stats.pending_amount }}</span><span>Amount pending</span></div>
+  <div class="stat"><span class="stat-num">₹{{ stats.pending_amount | inr }}</span><span>Amount pending</span></div>
   <div class="stat {% if stats.overdue %}stat-alert{% endif %}"><span class="stat-num">{{ stats.overdue }}</span><span>Overdue (&gt;48h)</span></div>
   <div class="stat {% if stats.issues %}stat-alert{% endif %}"><span class="stat-num">{{ stats.issues }}</span><span>Issues</span></div>
   <a class="stat {% if stats.open_tickets %}stat-alert{% endif %}" href="/admin/tickets"><span class="stat-num">{{ stats.open_tickets }}</span><span>Open queries</span></a>
@@ -21,7 +21,7 @@
 <section class="card">
   <h2>Campaigns</h2>
   <table>
-    <thead><tr><th>Name</th><th>Song</th><th>Client</th><th>Default ₹</th><th>Creator link</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>Song</th><th>Client</th><th>Default ₹</th><th>Audio check</th><th>Creator link</th><th></th></tr></thead>
     <tbody>
     {% for c in campaigns %}
       <tr class="{% if not c.active %}inactive{% endif %}">
@@ -29,6 +29,7 @@
         <td>{{ c.song }}</td>
         <td>{{ c.client }}</td>
         <td>{{ c.default_amount }}</td>
+        <td>{% if c.audio_id %}✓ audio link{% elif c.song %}by song name{% else %}<span class="muted">none</span>{% endif %}</td>
         <td><code>{{ base_url }}/submit?campaign={{ c.id }}</code></td>
         <td>
           <form method="post" action="/admin/campaigns/{{ c.id }}/toggle">
@@ -37,7 +38,7 @@
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="6" class="muted">No campaigns yet. Add one below.</td></tr>
+      <tr><td colspan="7" class="muted">No campaigns yet. Add one below.</td></tr>
     {% endfor %}
     </tbody>
   </table>
@@ -47,6 +48,7 @@
     <input name="song" placeholder="Song">
     <input name="client" placeholder="Client (artist/label)">
     <input name="default_amount" type="number" min="0" placeholder="Default ₹ per reel">
+    <input name="audio_link" placeholder="Instagram audio link (for reel checks)" class="grow">
     <button>Add campaign</button>
   </form>
 </section>
@@ -54,6 +56,13 @@
 <section class="card">
   <div class="toolbar">
     <h2>Submissions</h2>
+    {% if verify_on %}
+    <form method="post" action="/admin/verify">
+      <button class="small secondary">Check pending reels now</button>
+    </form>
+    {% else %}
+    <span class="muted">Automatic reel checks are off (set APIFY_TOKEN)</span>
+    {% endif %}
     <form method="get" action="/admin" class="inline-form">
       {% if campaign_filter %}<input type="hidden" name="campaign" value="{{ campaign_filter }}">{% endif %}
       <select name="status_filter" onchange="this.form.submit()">
@@ -67,7 +76,7 @@
 
   <div class="table-wrap">
   <table>
-    <thead><tr><th>#</th><th>Creator</th><th>Campaign</th><th>UPI</th><th>Reel</th><th>Submitted</th><th>Update</th></tr></thead>
+    <thead><tr><th>#</th><th>Creator</th><th>Campaign</th><th>UPI</th><th>Reel check</th><th>Submitted</th><th>Update</th></tr></thead>
     <tbody>
     {% for s in submissions %}
       <tr class="{% if is_overdue(s) %}overdue{% endif %}">
@@ -75,7 +84,12 @@
         <td>@{{ s.ig_handle }}<br><span class="muted">{{ s.whatsapp }}</span></td>
         <td>{{ s.campaign_name }}</td>
         <td><code>{{ s.upi_id }}</code></td>
-        <td><a href="{{ s.reel_url }}" target="_blank" rel="noopener">Open</a></td>
+        <td class="reel-check">
+          <a href="{{ s.reel_url }}" target="_blank" rel="noopener">Open</a>
+          {% if s.verify_status != 'unchecked' %}<span class="badge badge-v-{{ s.verify_status }}">{{ s.verify_status }}</span>{% endif %}
+          {% if s.verify_notes %}<br><span class="verify-notes">{{ s.verify_notes }}</span>{% endif %}
+          {% if s.views is not none %}<br><span class="muted">{{ s.views | inr }} views · {{ s.likes or 0 | inr }} likes</span>{% endif %}
+        </td>
         <td>{{ s.submitted_at | ist }}{% if is_overdue(s) %}<br><span class="badge badge-issue">overdue</span>{% endif %}</td>
         <td>
           <form method="post" action="/admin/submissions/{{ s.id }}" class="row-form">
@@ -85,7 +99,7 @@
             </select>
             <input name="amount" type="number" min="0" value="{{ s.amount }}" aria-label="Amount">
             <input name="note" value="{{ s.note }}" placeholder="Note shown to creator">
-            <input name="upi_id" placeholder="New UPI (only to change)" autocapitalize="off" aria-label="New UPI ID">
+            <input name="upi_id" placeholder="New UPI ID" autocapitalize="off" aria-label="New UPI ID">
             <button class="small">Save</button>
           </form>
         </td>

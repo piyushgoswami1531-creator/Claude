@@ -1,4 +1,5 @@
-"""Praabhaav creator payments: submission form, status page, query agent and admin.
+"""Praabhaav creator payments: submissions, status page, query agent, reel
+verification, payment planner and admin.
 
 Run locally:
     ADMIN_PASSWORD=change-me uvicorn app.main:create_app --factory --reload
@@ -8,7 +9,7 @@ import csv
 import io
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Form, HTTPException, Request, status
@@ -19,12 +20,13 @@ from fastapi.templating import Jinja2Templates
 
 from . import validation
 from .agent import QueryAgent
-from .db import STATUSES, TICKET_STATUSES, Database, DuplicateSubmission, is_overdue
+from .db import IST, STATUSES, inr, TICKET_STATUSES, Database, DuplicateSubmission, is_overdue
 from .digest import build_digest
 from .notify import Notifier, ticket_alert
+from .planner import current_plan, expected_dates, group_by_day, today_ist
+from .reels import ApifyReelFetcher, verify_pending
 
 BASE_DIR = Path(__file__).resolve().parent
-IST = timezone(timedelta(hours=5, minutes=30))
 
 STATUS_MESSAGES = {
     "submitted": "We've received your reel. Our team will verify it shortly.",
@@ -46,15 +48,19 @@ def create_app(
     db_path: str | None = None,
     agent: QueryAgent | None = None,
     notifier: Notifier | None = None,
+    fetcher=None,
 ) -> FastAPI:
+    """``fetcher`` fetches reel data (``ApifyReelFetcher``); None reads APIFY_TOKEN."""
     db = Database(db_path or os.environ.get("PRAABHAAV_DB", "praabhaav.db"))
     agent = agent or QueryAgent.from_env()
     notifier = notifier or Notifier.from_env()
+    fetcher = fetcher or ApifyReelFetcher.from_env()
     app = FastAPI(title="Praabhaav Creator Payments")
     app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
     templates = Jinja2Templates(directory=BASE_DIR / "templates")
     templates.env.filters["ist"] = format_ist
+    templates.env.filters["inr"] = inr
     templates.env.globals["is_overdue"] = is_overdue
     templates.env.globals["STATUS_MESSAGES"] = STATUS_MESSAGES
 
@@ -165,6 +171,7 @@ def create_app(
             request,
             "status.html",
             {"results": db.find_for_creator(handle, phone),
+             "expected": expected_dates(db),
              "tickets": db.find_tickets_for_creator(handle, phone),
              "errors": [], "ig_handle": handle},
         )
@@ -230,6 +237,7 @@ def create_app(
         decision = agent.handle(
             role=role, name=name, message=message, records=records,
             campaign_info=campaign_info,
+            expected=expected_dates(db) if role == "creator" else None,
         )
         ticket_id = db.add_ticket(
             access_token=secrets.token_urlsafe(16), role=role, name=name, contact=phone,
@@ -280,6 +288,8 @@ def create_app(
                 "status_filter": status_filter,
                 "campaign_filter": campaign,
                 "base_url": public_url(request),
+                "verify_on": fetcher is not None,
+                "verifying": request.query_params.get("verifying") == "1",
             },
         )
 
@@ -289,12 +299,76 @@ def create_app(
         song: str = Form(""),
         client: str = Form(""),
         default_amount: int = Form(0),
+        audio_link: str = Form(""),
         _: str = Depends(require_admin),
     ):
         if not name.strip() or default_amount < 0:
             raise HTTPException(400, "Campaign needs a name and a non-negative amount.")
-        db.create_campaign(name.strip(), song.strip(), client.strip(), default_amount)
+        try:
+            audio_id = validation.clean_audio(audio_link)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        db.create_campaign(name.strip(), song.strip(), client.strip(), default_amount, audio_id)
         return RedirectResponse("/admin", status_code=303)
+
+    @app.post("/admin/verify")
+    def verify_reels(background_tasks: BackgroundTasks, _: str = Depends(require_admin)):
+        if fetcher is None:
+            raise HTTPException(400, "Reel checks are off: set APIFY_TOKEN.")
+        # An Apify run takes ~20-60s, so run it after the response is sent.
+        background_tasks.add_task(verify_pending, db, fetcher, notifier)
+        return RedirectResponse("/admin?verifying=1", status_code=303)
+
+    # --- payouts -----------------------------------------------------------
+
+    @app.get("/admin/payouts")
+    def payouts(request: Request, _: str = Depends(require_admin)):
+        plan = current_plan(db)
+        today = today_ist()
+        start_of_today = datetime(today.year, today.month, today.day, tzinfo=IST)
+        return templates.TemplateResponse(
+            request,
+            "admin_payouts.html",
+            {
+                "stats": db.stats(),
+                "daily_limit": db.get_daily_limit(),
+                "paid_today": db.paid_since(start_of_today),
+                "today": today,
+                "todays": [p for p in plan if p.pay_date == today],
+                "days": [d for d in group_by_day(plan) if d[0] != today],
+                "over_limit": [p for p in plan if p.over_limit],
+            },
+        )
+
+    @app.post("/admin/payouts/limit")
+    def set_limit(daily_limit: int = Form(...), _: str = Depends(require_admin)):
+        if daily_limit <= 0:
+            raise HTTPException(400, "Daily limit must be more than ₹0.")
+        db.set_daily_limit(daily_limit)
+        return RedirectResponse("/admin/payouts", status_code=303)
+
+    @app.post("/admin/payouts/mark-paid")
+    def mark_paid(submission_ids: list[int] = Form([]), _: str = Depends(require_admin)):
+        db.mark_paid(submission_ids)
+        return RedirectResponse("/admin/payouts", status_code=303)
+
+    @app.get("/admin/payouts/today.csv")
+    def todays_batch_csv(_: str = Depends(require_admin)):
+        today = today_ist()
+        rows = [p.submission for p in current_plan(db) if p.pay_date == today]
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(["id", "ig_handle", "upi_id", "amount", "campaign", "whatsapp"])
+        for r in rows:
+            writer.writerow([_csv_safe(v) for v in (
+                r["id"], r["ig_handle"], r["upi_id"], r["amount"], r["campaign_name"],
+                r["whatsapp"],
+            )])
+        return Response(
+            buf.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="payouts-{today}.csv"'},
+        )
 
     @app.post("/admin/campaigns/{campaign_id}/toggle")
     def toggle_campaign(campaign_id: int, _: str = Depends(require_admin)):
