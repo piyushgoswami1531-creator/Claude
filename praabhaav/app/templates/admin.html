@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Admin · Praabhaav{% endblock %}
+{% block body_class %}admin{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>Payments tracker</h1>
+  <nav class="admin-nav">
+    <a href="/admin" aria-current="page">Payments</a>
+    <a href="/admin/tickets">Queries ({{ stats.open_tickets }} open)</a>
+  </nav>
+</div>
+
+<section class="stats">
+  <div class="stat"><span class="stat-num">{{ stats.pending }}</span><span>Waiting for payment</span></div>
+  <div class="stat"><span class="stat-num">₹{{ stats.pending_amount }}</span><span>Amount pending</span></div>
+  <div class="stat {% if stats.overdue %}stat-alert{% endif %}"><span class="stat-num">{{ stats.overdue }}</span><span>Overdue (&gt;48h)</span></div>
+  <div class="stat {% if stats.issues %}stat-alert{% endif %}"><span class="stat-num">{{ stats.issues }}</span><span>Issues</span></div>
+  <a class="stat {% if stats.open_tickets %}stat-alert{% endif %}" href="/admin/tickets"><span class="stat-num">{{ stats.open_tickets }}</span><span>Open queries</span></a>
+</section>
+
+<section class="card">
+  <h2>Campaigns</h2>
+  <table>
+    <thead><tr><th>Name</th><th>Song</th><th>Client</th><th>Default ₹</th><th>Creator link</th><th></th></tr></thead>
+    <tbody>
+    {% for c in campaigns %}
+      <tr class="{% if not c.active %}inactive{% endif %}">
+        <td><a href="/admin?campaign={{ c.id }}">{{ c.name }}</a></td>
+        <td>{{ c.song }}</td>
+        <td>{{ c.client }}</td>
+        <td>{{ c.default_amount }}</td>
+        <td><code>{{ base_url }}/submit?campaign={{ c.id }}</code></td>
+        <td>
+          <form method="post" action="/admin/campaigns/{{ c.id }}/toggle">
+            <button class="small secondary">{{ 'Close' if c.active else 'Reopen' }}</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">No campaigns yet. Add one below.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post" action="/admin/campaigns" class="inline-form">
+    <input name="name" required placeholder="Campaign name">
+    <input name="song" placeholder="Song">
+    <input name="client" placeholder="Client (artist/label)">
+    <input name="default_amount" type="number" min="0" placeholder="Default ₹ per reel">
+    <button>Add campaign</button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="toolbar">
+    <h2>Submissions</h2>
+    <form method="get" action="/admin" class="inline-form">
+      {% if campaign_filter %}<input type="hidden" name="campaign" value="{{ campaign_filter }}">{% endif %}
+      <select name="status_filter" onchange="this.form.submit()">
+        <option value="">All statuses</option>
+        {% for s in statuses %}<option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+      {% if campaign_filter %}<a href="/admin">Clear campaign filter</a>{% endif %}
+      <a class="button small secondary" href="/admin/export.csv?{% if status_filter %}status_filter={{ status_filter }}&{% endif %}{% if campaign_filter %}campaign={{ campaign_filter }}{% endif %}">Export CSV</a>
+    </form>
+  </div>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>#</th><th>Creator</th><th>Campaign</th><th>UPI</th><th>Reel</th><th>Submitted</th><th>Update</th></tr></thead>
+    <tbody>
+    {% for s in submissions %}
+      <tr class="{% if is_overdue(s) %}overdue{% endif %}">
+        <td>{{ s.id }}</td>
+        <td>@{{ s.ig_handle }}<br><span class="muted">{{ s.whatsapp }}</span></td>
+        <td>{{ s.campaign_name }}</td>
+        <td><code>{{ s.upi_id }}</code></td>
+        <td><a href="{{ s.reel_url }}" target="_blank" rel="noopener">Open</a></td>
+        <td>{{ s.submitted_at | ist }}{% if is_overdue(s) %}<br><span class="badge badge-issue">overdue</span>{% endif %}</td>
+        <td>
+          <form method="post" action="/admin/submissions/{{ s.id }}" class="row-form">
+            <input type="hidden" name="next_url" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+            <select name="new_status">
+              {% for st in statuses %}<option value="{{ st }}" {% if st == s.status %}selected{% endif %}>{{ st }}</option>{% endfor %}
+            </select>
+            <input name="amount" type="number" min="0" value="{{ s.amount }}" aria-label="Amount">
+            <input name="note" value="{{ s.note }}" placeholder="Note shown to creator">
+            <input name="upi_id" placeholder="New UPI (only to change)" autocapitalize="off" aria-label="New UPI ID">
+            <button class="small">Save</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="muted">No submissions.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

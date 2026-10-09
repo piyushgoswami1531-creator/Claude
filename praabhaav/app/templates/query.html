@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Ask a question · Praabhaav{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Ask a question</h1>
+  <p class="muted">Payment not received, wrong UPI ID, question about a campaign? Ask here and you'll get an answer right away, or the team will follow up on WhatsApp.</p>
+
+  <form method="post" action="/query" class="form">
+    <fieldset class="role-pick">
+      <legend>I am a</legend>
+      <label class="radio"><input type="radio" name="role" value="creator" {% if values.role != 'client' %}checked{% endif %}> Creator</label>
+      <label class="radio"><input type="radio" name="role" value="client" {% if values.role == 'client' %}checked{% endif %}> Client (artist / label / agency)</label>
+    </fieldset>
+
+    <label>Instagram handle (creators) or your name / company (clients)
+      <input name="name" required placeholder="@yourhandle or XYZ Records" value="{{ values.name or '' }}" autocapitalize="off">
+    </label>
+
+    <label>WhatsApp number
+      <input name="whatsapp" required inputmode="tel" placeholder="98765 43210" value="{{ values.whatsapp or '' }}">
+    </label>
+
+    <label>Campaign (optional)
+      <select name="campaign_id">
+        <option value="">Not about a specific campaign</option>
+        {% for c in campaigns %}
+        <option value="{{ c.id }}" {% if values.campaign_id == c.id %}selected{% endif %}>{{ c.name }}{% if c.song %} · {{ c.song }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Your question
+      <textarea name="message" required rows="5" maxlength="2000" placeholder="e.g. I submitted my reel 3 days ago but haven't been paid yet">{{ values.message or '' }}</textarea>
+    </label>
+
+    <button type="submit">Send</button>
+  </form>
+  <p class="muted small-print">Creators: use the same Instagram handle and WhatsApp number you submitted your reel with, so we can find your payments.</p>
+</section>
+{% endblock %}
