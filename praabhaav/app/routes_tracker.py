@@ -84,6 +84,7 @@ def register(app: FastAPI, ctx: Ctx) -> None:
         return ctx.render(request, "admin_campaign.html", {
             "stats": db.stats(), "campaign": campaign, "rows": rows, "totals": totals,
             "cpms": {r["id"]: tracker.row_cpm(r) for r in rows},
+            "series": tracker.views_series(db, campaign_id),
             "apify_on": ctx.fetcher is not None,
             "job": ctx.jobs.get(campaign_id),
             "submit_link": f"{ctx.public_url(request)}/submit?campaign={campaign_id}",
@@ -121,8 +122,10 @@ def register(app: FastAPI, ctx: Ctx) -> None:
     def client_report_page(request: Request, token: str):
         campaign = report_or_404(token)
         report = tracker.client_report(db.list_roster(campaign["id"]))
-        response = ctx.render(request, "report.html", {"campaign": campaign, "report": report,
-                                                       "token": token})
+        response = ctx.render(request, "report.html", {
+            "campaign": campaign, "report": report, "token": token,
+            "series": tracker.views_series(db, campaign["id"]),
+        })
         response.headers.update(REPORT_HEADERS)
         return response
 
@@ -221,5 +224,7 @@ def register(app: FastAPI, ctx: Ctx) -> None:
             body = ctx.templates.env.get_template("_roster_body.html").render(
                 rows=rows, max_views=totals["max_views"],
                 cpms={r["id"]: tracker.row_cpm(r) for r in rows})
-            job = {**job, "body_html": body, **fragments(campaign_id)}
+            chart = ctx.templates.env.get_template("_views_chart.html").render(
+                series=tracker.views_series(db, campaign_id))
+            job = {**job, "body_html": body, "chart_html": chart, **fragments(campaign_id)}
         return job

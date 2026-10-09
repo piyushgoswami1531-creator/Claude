@@ -450,3 +450,28 @@ details.panel[open] > summary { margin-bottom: 14px; }
   .bar span { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .grad-text { color: #6d28d9; background: none; }
 }
+
+/* views-over-time line chart (single series: accent line, 10% area wash) */
+.line-chart { position: relative; margin: 0; min-height: 240px; }
+.line-chart svg { display: block; width: 100%; height: auto; overflow: visible; outline: none; }
+.line-chart svg:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 8px; }
+.line-chart .grid line { stroke: var(--border); stroke-width: 1; shape-rendering: crispEdges; }
+.line-chart .axis text { fill: var(--faint); font-size: 11px; font-family: var(--font); }
+.line-chart .area { fill: var(--accent); opacity: .10; }
+.line-chart .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.line-chart .end-dot, .line-chart .hover-dot { fill: var(--accent); stroke: var(--surface-strong); stroke-width: 2; }
+.line-chart .end-label { fill: var(--text); font-size: 12px; font-weight: 700; font-family: var(--font); }
+.line-chart .crosshair { stroke: var(--border-strong); stroke-width: 1; }
+.line-chart .hit { fill: transparent; cursor: crosshair; }
+.chart-tip {
+  position: absolute; pointer-events: none; z-index: 2; min-width: 130px;
+  padding: 8px 12px; border-radius: 10px; background: var(--surface-strong); border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow); font-size: 0.82rem; transform: translate(-50%, calc(-100% - 12px)); white-space: nowrap;
+}
+.chart-tip strong { display: block; font-size: 1rem; }
+.chart-tip .key { display: inline-block; width: 12px; height: 2px; background: var(--accent); vertical-align: middle; margin-right: 6px; }
+.chart-tip span { color: var(--muted); }
+.chart-note { margin-top: 8px; }
+.chart-table { margin-top: 10px; }
+.chart-table summary { cursor: pointer; color: var(--muted); }
+@media print { .chart-table { display: none; } .line-chart .area, .line-chart .line { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }

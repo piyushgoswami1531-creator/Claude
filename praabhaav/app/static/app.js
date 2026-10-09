@@ -119,6 +119,154 @@
     rows.forEach((r) => body.appendChild(r));
   });
 
+  // ---------- views-over-time line chart ----------
+  // Single series: 2px accent line, 10% area wash, hairline grid, value label at the
+  // line's end, crosshair + tooltip that snaps to the nearest day (mouse, touch, keys).
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  function svgEl(tag, attrs, parent) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
+    if (parent) parent.appendChild(el);
+    return el;
+  }
+  function niceStep(raw) {
+    const p = Math.pow(10, Math.floor(Math.log10(raw)));
+    const f = raw / p;
+    return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+  }
+  function dayLabel(d, long) {
+    const base = `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+    return long ? `${WEEKDAYS[d.getUTCDay()]}, ${base}` : base;
+  }
+
+  function renderLineChart(fig) {
+    let series;
+    try { series = JSON.parse(fig.dataset.series || "[]"); } catch { return; }
+    if (!series.length) return;
+    fig.textContent = "";
+    const pts = series.map((p) => ({ ...p, date: new Date(p.day + "T00:00:00Z") }));
+    const W = Math.max(fig.clientWidth, 280);
+    const H = W < 520 ? 210 : 260;
+    const m = { l: 48, r: 64, t: 18, b: 30 };
+    const pw = W - m.l - m.r, ph = H - m.t - m.b;
+
+    const maxV = Math.max(...pts.map((p) => p.views), 1);
+    const step = niceStep(maxV / 4);
+    const top = Math.ceil(maxV / step) * step;
+    const t0 = pts[0].date.getTime(), t1 = pts[pts.length - 1].date.getTime();
+    const x = (p) => (t1 === t0 ? m.l + pw / 2 : m.l + ((p.date.getTime() - t0) / (t1 - t0)) * pw);
+    const y = (v) => m.t + ph - (v / top) * ph;
+
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img",
+      tabindex: "0", "aria-label": fig.getAttribute("aria-label") || "Views over time" }, fig);
+
+    // hairline grid + y ticks (clean round numbers, compact labels)
+    const grid = svgEl("g", { class: "grid" }, svg);
+    const axis = svgEl("g", { class: "axis" }, svg);
+    for (let v = 0; v <= top + 1e-9; v += step) {
+      svgEl("line", { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v) }, grid);
+      const t = svgEl("text", { x: m.l - 8, y: y(v) + 4, "text-anchor": "end" }, axis);
+      t.textContent = compact(v);
+    }
+    // x labels: first, last and evenly spaced ones that fit
+    const maxLabels = Math.max(2, Math.floor(pw / 74));
+    const every = Math.max(1, Math.ceil(pts.length / maxLabels));
+    pts.forEach((p, i) => {
+      const isLast = i === pts.length - 1;
+      if (i % every !== 0 && !isLast) return;
+      if (!isLast && pts.length > 1 && x(pts[pts.length - 1]) - x(p) < 72) return;  // keep clear of the final date label
+      const t = svgEl("text", { x: x(p), y: H - 8, "text-anchor": "middle" }, axis);
+      t.textContent = dayLabel(p.date);
+    });
+
+    // area + line
+    if (pts.length > 1) {
+      const line = pts.map((p, i) => `${i ? "L" : "M"}${x(p).toFixed(1)},${y(p.views).toFixed(1)}`).join("");
+      svgEl("path", { class: "area", d: `${line}L${x(pts[pts.length - 1])},${y(0)}L${x(pts[0])},${y(0)}Z` }, svg);
+      svgEl("path", { class: "line", d: line }, svg);
+    }
+    // end dot + direct value label at the line's end
+    const last = pts[pts.length - 1];
+    svgEl("circle", { class: "end-dot", cx: x(last), cy: y(last.views), r: 4.5 }, svg);
+    const endLabel = svgEl("text", { class: "end-label", x: x(last) + 10, y: y(last.views) + 4 }, svg);
+    endLabel.textContent = compact(last.views);
+
+    // hover layer
+    const cross = svgEl("line", { class: "crosshair", y1: m.t, y2: m.t + ph, visibility: "hidden" }, svg);
+    const dot = svgEl("circle", { class: "hover-dot", r: 5, visibility: "hidden" }, svg);
+    const tip = document.createElement("div");
+    tip.className = "chart-tip";
+    tip.hidden = true;
+    fig.appendChild(tip);
+    const hit = svgEl("rect", { class: "hit", x: m.l - 10, y: 0, width: pw + 20, height: H }, svg);
+
+    let current = -1;
+    function show(i) {
+      current = i;
+      const p = pts[i];
+      const px = x(p), py = y(p.views);
+      cross.setAttribute("x1", px); cross.setAttribute("x2", px); cross.setAttribute("visibility", "visible");
+      dot.setAttribute("cx", px); dot.setAttribute("cy", py); dot.setAttribute("visibility", "visible");
+      tip.textContent = "";
+      const strong = document.createElement("strong");
+      strong.textContent = `${p.views.toLocaleString("en-IN")} views`;
+      const meta = document.createElement("span");
+      let text = `${dayLabel(p.date, true)} · ${p.reels} reel${p.reels === 1 ? "" : "s"}`;
+      if (i > 0) {
+        const diff = p.views - pts[i - 1].views;
+        text += ` · ${diff >= 0 ? "+" : "−"}${compact(Math.abs(diff))} since ${dayLabel(pts[i - 1].date)}`;
+      }
+      meta.textContent = text;
+      const key = document.createElement("i");
+      key.className = "key";
+      tip.append(strong, key, meta);
+      tip.hidden = false;
+      const scale = fig.clientWidth / W;
+      const left = Math.min(Math.max(px * scale, 80), fig.clientWidth - 80);
+      tip.style.left = `${left}px`;
+      tip.style.top = `${py * scale}px`;
+    }
+    function hide() {
+      current = -1;
+      cross.setAttribute("visibility", "hidden");
+      dot.setAttribute("visibility", "hidden");
+      tip.hidden = true;
+    }
+    function nearest(evt) {
+      const rect = svg.getBoundingClientRect();
+      const sx = ((evt.clientX - rect.left) / rect.width) * W;
+      let best = 0;
+      pts.forEach((p, i) => { if (Math.abs(x(p) - sx) < Math.abs(x(pts[best]) - sx)) best = i; });
+      return best;
+    }
+    hit.addEventListener("pointermove", (e) => show(nearest(e)));
+    hit.addEventListener("pointerdown", (e) => show(nearest(e)));
+    hit.addEventListener("pointerleave", hide);
+    svg.addEventListener("focus", () => show(pts.length - 1));
+    svg.addEventListener("blur", hide);
+    svg.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        const next = (current < 0 ? pts.length - 1 : current) + (e.key === "ArrowLeft" ? -1 : 1);
+        show(Math.min(Math.max(next, 0), pts.length - 1));
+      } else if (e.key === "Escape") {
+        hide();
+      }
+    });
+  }
+
+  function renderCharts(root = document) {
+    root.querySelectorAll(".line-chart[data-series]").forEach(renderLineChart);
+  }
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => renderCharts(), 150);
+  });
+
   // ---------- campaign tracker ----------
   function initTracker() {
     const tracker = document.getElementById("tracker");
@@ -236,6 +384,8 @@
         jobBox.hidden = true;
         setRefreshButtons(false);
         if (job.body_html) { body.innerHTML = job.body_html; swapTotals(job.totals_html); }
+        const chartBox = document.getElementById("views-chart");
+        if (job.chart_html && chartBox) { chartBox.innerHTML = job.chart_html; renderCharts(chartBox); }
         toast(job.message, job.state === "error" ? "error" : "good");
       } catch (err) {
         jobBox.hidden = true;
@@ -261,6 +411,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     countUp();
+    renderCharts();
     initTracker();
     document.querySelectorAll("[data-toast]").forEach((el) => toast(el.dataset.toast));
   });

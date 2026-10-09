@@ -1,0 +1,34 @@
+<section class="card chart-card">
+  <div class="card-head">
+    <h2>Views over time</h2>
+    <span class="muted small">Total views, one point per day</span>
+  </div>
+  {% if series %}
+  <figure class="line-chart" data-series='{{ series | tojson }}'
+          aria-label="Line chart of total views per day, from {{ series[0].views | compact }} on {{ series[0].day }} to {{ series[-1].views | compact }} on {{ series[-1].day }}">
+  </figure>
+  {% if series | length == 1 %}
+  <p class="muted small chart-note">First data point recorded. The line grows as views refresh each day.</p>
+  {% endif %}
+  <details class="chart-table">
+    <summary class="small">Show as table</summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Day</th><th class="right">Total views</th><th class="right">Change</th><th class="right">Live reels</th></tr></thead>
+        <tbody>
+        {% for p in series %}
+          <tr>
+            <td>{{ p.day }}</td>
+            <td class="right num">{{ '{:,}'.format(p.views) }}</td>
+            <td class="right num">{% if not loop.first %}{% set diff = p.views - series[loop.index0 - 1].views %}{{ '+' if diff >= 0 }}{{ '{:,}'.format(diff) }}{% else %}–{% endif %}</td>
+            <td class="right num">{{ p.reels }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% else %}
+  <p class="empty">The chart starts after the first views refresh{{ ' (daily at 8:30 AM)' }}. Each day adds a point.</p>
+  {% endif %}
+</section>

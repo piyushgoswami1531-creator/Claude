@@ -141,6 +141,16 @@ CREATE TABLE IF NOT EXISTS roster (
 );
 
 CREATE INDEX IF NOT EXISTS idx_roster_campaign ON roster (campaign_id);
+
+-- One row per campaign per day (IST): total views after that day's last refresh.
+CREATE TABLE IF NOT EXISTS view_snapshots (
+    campaign_id  INTEGER NOT NULL REFERENCES campaigns(id),
+    day          TEXT NOT NULL,
+    views        INTEGER NOT NULL,
+    live_reels   INTEGER NOT NULL,
+    recorded_at  TEXT NOT NULL,
+    PRIMARY KEY (campaign_id, day)
+);
 """
 
 ROSTER_EDITABLE = ("handle", "profile_url", "followers", "post_link", "price", "reel_url", "notes")
@@ -563,6 +573,23 @@ class Database:
     def delete_roster_row(self, row_id: int) -> None:
         with self.connect() as conn:
             conn.execute("DELETE FROM roster WHERE id = ?", (row_id,))
+
+    def save_snapshot(self, campaign_id: int, day: str, views: int, live_reels: int) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO view_snapshots (campaign_id, day, views, live_reels, recorded_at)"
+                " VALUES (?, ?, ?, ?, ?) ON CONFLICT(campaign_id, day) DO UPDATE SET"
+                " views = excluded.views, live_reels = excluded.live_reels,"
+                " recorded_at = excluded.recorded_at",
+                (campaign_id, day, views, live_reels, to_iso(now_utc())),
+            )
+
+    def list_snapshots(self, campaign_id: int) -> list[sqlite3.Row]:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT day, views, live_reels FROM view_snapshots WHERE campaign_id = ?"
+                " ORDER BY day", (campaign_id,),
+            ).fetchall()
 
     def active_roster_with_reels(self) -> list[sqlite3.Row]:
         with self.connect() as conn:

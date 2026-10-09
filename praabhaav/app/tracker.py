@@ -13,6 +13,7 @@ import threading
 import time
 
 from .db import Database
+from .planner import today_ist
 from .reels import BATCH_SIZE, shortcode
 
 log = logging.getLogger(__name__)
@@ -132,6 +133,19 @@ def client_report(rows) -> dict:
         "reels": reels,
         "updated": updated,
     }
+
+
+def record_snapshot(db: Database, campaign_id: int) -> None:
+    """Save today's campaign total for the views-over-time chart. Uses the same
+    numbers as the client report (broken reels excluded), so the two agree."""
+    report = client_report(db.list_roster(campaign_id))
+    if report["live"]:
+        db.save_snapshot(campaign_id, today_ist().isoformat(), report["views"], report["live"])
+
+
+def views_series(db: Database, campaign_id: int) -> list[dict]:
+    return [{"day": s["day"], "views": s["views"], "reels": s["live_reels"]}
+            for s in db.list_snapshots(campaign_id)]
 
 
 REPORT_CSV_COLUMNS = ["handle", "profile_url", "followers", "reel_url", "views", "likes", "comments"]
@@ -260,6 +274,8 @@ def refresh_views(db: Database, rows, client) -> str:
                 comments=item.get("commentsCount"),
             )
             updated += 1
+    for campaign_id in sorted({r["campaign_id"] for r in rows}):
+        record_snapshot(db, campaign_id)
     msg = f"Updated views for {updated} reel{'s' if updated != 1 else ''}"
     return msg + (f", {missing} not found" if missing else "") + "."
 

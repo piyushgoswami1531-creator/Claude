@@ -7,7 +7,13 @@ The app replaces the per-campaign Google Sheets and the "where's my payment?" Wh
 - **Campaign tracker:** one page per campaign with every creator's profile, followers, post link, price per reel and live reel link. **Live views** and **follower counts** come from Instagram via Apify, with totals and cost per 1,000 views.
 - **Client report links** (`/r/<secret>`):
 - On a campaign's page: **Create client report link** → **Copy link** → send it to the artist/label. **New link** replaces it (the old one stops working); **Turn off** disables it.
-- Shows campaign and song, total views (headline), live reels, likes, comments, follower reach, average views per reel, and every live reel ranked by views with a **Watch** link. Numbers update with the daily views refresh.
+- Shows campaign and song, total views (headline), a **views-over-time chart**, live reels, likes, comments, follower reach, average views per reel, and every live reel ranked by views with a **Watch** link. Numbers update with the daily views refresh.
+
+**Views over time:**
+- Every views refresh (the daily 08:30 IST run or **Refresh live views**) saves the campaign's total for that day, one point per day. A later refresh the same day updates that day's point.
+- The chart is on the campaign page and the client report. Hover, tap or use ←/→ to see a day's total views, live reels and growth since the previous point. **Show as table** lists the same numbers.
+- It uses the same total as the client report (deleted reels excluded), so the chart's last point always matches the headline.
+- History starts from the first refresh after this feature is deployed; earlier days can't be recovered from Instagram.
 - **Never shows** prices, spend, cost per view, notes, creator phone numbers or UPI IDs. Reels Apify reports as deleted/private are left off until fixed.
 - Clients can **Download CSV** or **Save as PDF** (clean light layout for printing). The page tells search engines not to index it and doesn't leak its link to other sites.
 
@@ -24,9 +30,9 @@ The app replaces the per-campaign Google Sheets and the "where's my payment?" Wh
 |---|---|---|
 | ![submissions](docs/6-submissions.png) | ![payouts](docs/7-payouts.png) | ![light](docs/8-tracker-light.png) |
 
-| Client report | Client report (phone) | |
+| Client report | Client report (phone) | Views over time (hover) |
 |---|---|---|
-| ![report](docs/10-client-report.png) | ![report phone](docs/11-client-report-phone.png) | |
+| ![report](docs/10-client-report.png) | ![report phone](docs/11-client-report-phone.png) | ![chart](docs/12-views-over-time.png) |
 
 | Home (phone) | Submit a reel (phone) | Tracker (phone) |
 |---|---|---|
@@ -57,7 +63,13 @@ The app replaces the per-campaign Google Sheets and the "where's my payment?" Wh
 
 **Client report links** (`/r/<secret>`):
 - On a campaign's page: **Create client report link** → **Copy link** → send it to the artist/label. **New link** replaces it (the old one stops working); **Turn off** disables it.
-- Shows campaign and song, total views (headline), live reels, likes, comments, follower reach, average views per reel, and every live reel ranked by views with a **Watch** link. Numbers update with the daily views refresh.
+- Shows campaign and song, total views (headline), a **views-over-time chart**, live reels, likes, comments, follower reach, average views per reel, and every live reel ranked by views with a **Watch** link. Numbers update with the daily views refresh.
+
+**Views over time:**
+- Every views refresh (the daily 08:30 IST run or **Refresh live views**) saves the campaign's total for that day, one point per day. A later refresh the same day updates that day's point.
+- The chart is on the campaign page and the client report. Hover, tap or use ←/→ to see a day's total views, live reels and growth since the previous point. **Show as table** lists the same numbers.
+- It uses the same total as the client report (deleted reels excluded), so the chart's last point always matches the headline.
+- History starts from the first refresh after this feature is deployed; earlier days can't be recovered from Instagram.
 - **Never shows** prices, spend, cost per view, notes, creator phone numbers or UPI IDs. Reels Apify reports as deleted/private are left off until fixed.
 - Clients can **Download CSV** or **Save as PDF** (clean light layout for printing). The page tells search engines not to index it and doesn't leak its link to other sites.
 

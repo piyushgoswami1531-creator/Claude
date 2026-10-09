@@ -30,6 +30,8 @@
     <div class="stat"><span class="label">Avg views per reel</span><span class="value num">{{ report.avg_views | compact if report.avg_views is not none else '–' }}</span></div>
   </section>
 
+  {% include "_views_chart.html" %}
+
   <section class="card">
     <div class="card-head"><h2>Reels, ranked by views</h2><span class="muted small">{{ report.live }} live</span></div>
     {% if report.reels %}
