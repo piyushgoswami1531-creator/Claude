@@ -4,6 +4,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import WhatsAppFab from "@/components/layout/WhatsAppFab";
 import { siteConfig } from "@/lib/siteConfig";
+import { palette } from "@/theme/palette";
 import "./globals.css";
 
 const serif = Playfair_Display({ subsets: ["latin"], variable: "--font-serif", display: "swap" });
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#F3EDE6",
+  themeColor: palette.canvas,
   width: "device-width",
   initialScale: 1,
 };

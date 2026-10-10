@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" width="800" height="1000">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#EDE3D8"/><stop offset="1" stop-color="#DCCBB9"/></linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#F7F2EC" stop-opacity="0.8"/><stop offset="1" stop-color="#F7F2EC" stop-opacity="0"/></radialGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1C1C1C"/><stop offset="1" stop-color="#101010"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.07"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
   </defs>
   <rect width="800" height="1000" fill="url(#bg)"/>
   <rect width="800" height="1000" fill="url(#glow)"/>
-  <ellipse cx="400" cy="880" rx="198" ry="19.8" fill="#4A3A2E" opacity="0.10"/>
+  <ellipse cx="400" cy="880" rx="198" ry="19.8" fill="#000000" opacity="0.55"/>
   <g transform="translate(0 0) translate(400 500) scale(0.9) translate(-400 -500)">
-    <path fill="#A88C72" d="M285 190 L515 190 L548 810 L428 810 L400 390 L372 810 L252 810 Z"/>
-    <path stroke="#4A3A2E" stroke-width="6" d="M287 235 L513 235"/>
-    <path fill="none" stroke="#4A3A2E" stroke-width="5" d="M300 240 Q320 300 375 300 M500 240 Q480 300 425 300"/>
-    <path stroke="#4A3A2E" stroke-width="5" d="M400 235 L400 390"/>
-    <circle cx="400" cy="215" r="7" fill="#4A3A2E"/></g>
+    <path fill="#D4D4D4" d="M285 190 L515 190 L548 810 L428 810 L400 390 L372 810 L252 810 Z"/>
+    <path stroke="#141414" stroke-width="6" d="M287 235 L513 235"/>
+    <path fill="none" stroke="#141414" stroke-width="5" d="M300 240 Q320 300 375 300 M500 240 Q480 300 425 300"/>
+    <path stroke="#141414" stroke-width="5" d="M400 235 L400 390"/>
+    <circle cx="400" cy="215" r="7" fill="#141414"/></g>
 </svg>

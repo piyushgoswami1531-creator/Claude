@@ -93,7 +93,7 @@ export default function Header() {
               key={item.href}
               href={item.href}
               className={`flex min-h-[56px] items-center border-b border-surface-strong/70 font-serif text-2xl transition-all duration-500 ${
-                isActive(item.href) ? "text-primary" : "text-ink-deep"
+                isActive(item.href) ? "text-ink-deep" : "text-ink/60"
               } ${open ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"}`}
               style={{ transitionDelay: open ? `${80 + i * 50}ms` : "0ms" }}
             >

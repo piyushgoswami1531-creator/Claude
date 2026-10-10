@@ -15,14 +15,15 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = join(root, "public", "placeholders");
 mkdirSync(outDir, { recursive: true });
 
-// Same family as tailwind.config.ts — placeholders stay on-palette.
+// Greys to match the black theme in theme/palette.ts.
 const BACKGROUNDS = [
-  ["#EDE3D8", "#DCCBB9"],
-  ["#E4D8CB", "#D2BFAB"],
-  ["#F0E8DF", "#E0D0BF"],
-  ["#E8DDD1", "#CDB8A2"],
+  ["#1C1C1C", "#101010"],
+  ["#202020", "#131313"],
+  ["#242424", "#161616"],
+  ["#1A1A1A", "#0E0E0E"],
 ];
-const FILLS = ["#8B6F57", "#735B47", "#A88C72", "#5E4A3A", "#9C7E63", "#4A3A2E", "#B39880"];
+const FILLS = ["#E5E5E5", "#A3A3A3", "#D4D4D4", "#737373", "#BDBDBD", "#F5F5F5", "#8A8A8A"];
+const DETAIL = "#141414";
 
 // ─── Garment silhouettes (800 × 1000 canvas) ───
 const shapes = {
@@ -89,7 +90,7 @@ const shapes = {
     <circle cx="400" cy="328" r="14" fill="${d}"/>`,
 };
 
-const detailFor = (fill) => (["#4A3A2E", "#5E4A3A", "#735B47"].includes(fill) ? "#C2A98F" : "#4A3A2E");
+const detailFor = () => DETAIL;
 
 function svg({ w = 800, h = 1000, bg, body }) {
   const [a, b] = bg;
@@ -97,7 +98,7 @@ function svg({ w = 800, h = 1000, bg, body }) {
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#F7F2EC" stop-opacity="0.8"/><stop offset="1" stop-color="#F7F2EC" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.07"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
   </defs>
   <rect width="${w}" height="${h}" fill="url(#bg)"/>
   <rect width="${w}" height="${h}" fill="url(#glow)"/>
@@ -108,7 +109,7 @@ function svg({ w = 800, h = 1000, bg, body }) {
 function garment(shape, fill, { scale = 1, dx = 0, dy = 0 } = {}) {
   const d = detailFor(fill);
   const t = `translate(${dx} ${dy}) translate(400 500) scale(${scale}) translate(-400 -500)`;
-  return `<ellipse cx="${400 + dx}" cy="${880 + dy}" rx="${220 * scale}" ry="${22 * scale}" fill="#4A3A2E" opacity="0.10"/>
+  return `<ellipse cx="${400 + dx}" cy="${880 + dy}" rx="${220 * scale}" ry="${22 * scale}" fill="#000000" opacity="0.55"/>
   <g transform="${t}">${shapes[shape](fill, d)}</g>`;
 }
 
@@ -135,11 +136,11 @@ seedCategories.filter((c) => !c.parent).forEach((c, i) => {
 
 // Hero: three overlapping garments
 write("hero.svg", svg({
-  w: 1000, h: 1200, bg: ["#E4D8CB", "#C9B39C"],
+  w: 1000, h: 1200, bg: ["#1E1E1E", "#0C0C0C"],
   body: `<g transform="translate(100 100)">
-    ${garment("jacket", "#735B47", { scale: 0.8, dx: -150, dy: 40 })}
-    ${garment("hoodie", "#A88C72", { scale: 0.8, dx: 160, dy: 80 })}
-    ${garment("shirt", "#8B6F57", { scale: 0.95, dx: 0, dy: 0 })}
+    ${garment("jacket", "#737373", { scale: 0.8, dx: -150, dy: 40 })}
+    ${garment("hoodie", "#A3A3A3", { scale: 0.8, dx: 160, dy: 80 })}
+    ${garment("shirt", "#E5E5E5", { scale: 0.95, dx: 0, dy: 0 })}
   </g>`,
 }));
 count++;
@@ -148,14 +149,14 @@ count++;
 const rail = ["shirt", "sweater", "kurta", "jacket", "tee"]
   .map((s, i) => {
     const x = 140 + i * 180;
-    return `<path fill="none" stroke="#4A3A2E" stroke-width="5" d="M${x} 210 Q${x} 185 ${x + 15} 185 Q${x + 30} 185 ${x + 30} 200 L${x} 240"/>
+    return `<path fill="none" stroke="#A3A3A3" stroke-width="5" d="M${x} 210 Q${x} 185 ${x + 15} 185 Q${x + 30} 185 ${x + 30} 200 L${x} 240"/>
       <g transform="translate(${x - 400 * 0.42} ${235 - 190 * 0.42}) scale(0.42)">${shapes[s](FILLS[i + 1], detailFor(FILLS[i + 1]))}</g>`;
   })
   .join("");
 write("about.svg", svg({
-  w: 1000, h: 750, bg: ["#E8DDD1", "#D2BFAB"],
-  body: `<path stroke="#4A3A2E" stroke-width="10" stroke-linecap="round" d="M80 185 L920 185"/>${rail}
-    <rect x="0" y="690" width="1000" height="60" fill="#4A3A2E" opacity="0.08"/>`,
+  w: 1000, h: 750, bg: ["#1C1C1C", "#0E0E0E"],
+  body: `<path stroke="#A3A3A3" stroke-width="10" stroke-linecap="round" d="M80 185 L920 185"/>${rail}
+    <rect x="0" y="690" width="1000" height="60" fill="#FFFFFF" opacity="0.04"/>`,
 }));
 count++;
 

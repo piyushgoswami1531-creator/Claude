@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" width="800" height="1000">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E4D8CB"/><stop offset="1" stop-color="#D2BFAB"/></linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#F7F2EC" stop-opacity="0.8"/><stop offset="1" stop-color="#F7F2EC" stop-opacity="0"/></radialGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#202020"/><stop offset="1" stop-color="#131313"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.07"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
   </defs>
   <rect width="800" height="1000" fill="url(#bg)"/>
   <rect width="800" height="1000" fill="url(#glow)"/>
-  <ellipse cx="400" cy="940" rx="297" ry="29.700000000000003" fill="#4A3A2E" opacity="0.10"/>
+  <ellipse cx="400" cy="940" rx="297" ry="29.700000000000003" fill="#000000" opacity="0.55"/>
   <g transform="translate(0 60) translate(400 500) scale(1.35) translate(-400 -500)">
-    <path fill="#B39880" d="M300 225 L360 200 L400 240 L440 200 L500 225 L605 290 L665 665 L605 680 L555 410 L560 800 L240 800 L245 410 L195 680 L135 665 L195 290 Z"/>
-    <path fill="none" stroke="#4A3A2E" stroke-width="6" stroke-linejoin="round" d="M360 200 L330 300 L395 360 M440 200 L470 300 L405 360"/>
-    <path stroke="#4A3A2E" stroke-width="6" d="M400 360 L400 800"/>
-    <path fill="none" stroke="#4A3A2E" stroke-width="5" d="M290 520 L360 520 M440 520 L510 520"/></g>
+    <path fill="#8A8A8A" d="M300 225 L360 200 L400 240 L440 200 L500 225 L605 290 L665 665 L605 680 L555 410 L560 800 L240 800 L245 410 L195 680 L135 665 L195 290 Z"/>
+    <path fill="none" stroke="#141414" stroke-width="6" stroke-linejoin="round" d="M360 200 L330 300 L395 360 M440 200 L470 300 L405 360"/>
+    <path stroke="#141414" stroke-width="6" d="M400 360 L400 800"/>
+    <path fill="none" stroke="#141414" stroke-width="5" d="M290 520 L360 520 M440 520 L510 520"/></g>
 </svg>

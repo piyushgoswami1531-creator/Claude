@@ -25,10 +25,10 @@ export default function CategoryCards({ categories }: { categories: Category[] }
                     className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                   />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-ink-deep/70 via-ink-deep/10 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-4 md:p-5">
-                  <h3 className="text-xl text-canvas md:text-2xl">{c.name}</h3>
-                  {c.description && <p className="mt-0.5 line-clamp-1 text-sm text-canvas/80">{c.description}</p>}
+                  <h3 className="text-xl text-white md:text-2xl">{c.name}</h3>
+                  {c.description && <p className="mt-0.5 line-clamp-1 text-sm text-white/80">{c.description}</p>}
                 </div>
               </div>
             </Link>
