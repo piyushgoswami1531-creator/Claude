@@ -9,6 +9,7 @@ import { effectivePrice, sortSizes } from "@/lib/catalog";
 import { discountPercent, formatPrice } from "@/lib/format";
 import { getProductBySlug, getProducts, getRelated } from "@/lib/queries";
 import { siteConfig } from "@/lib/siteConfig";
+import { jsonLdString } from "@/lib/structuredData";
 import { productUrl } from "@/lib/whatsapp";
 
 type Props = { params: { slug: string } };
@@ -70,7 +71,7 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }} />
 
       <div className="container pb-8 pt-4 md:pt-8">
         <Breadcrumbs items={crumbs} />
