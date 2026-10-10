@@ -7,6 +7,8 @@ import { whatsappLink } from "@/lib/whatsapp";
 export default function WhatsAppFab() {
   const pathname = usePathname();
   if (pathname.startsWith("/admin")) return null;
+  // Product pages have their own sticky order bar on phones.
+  const onProduct = pathname.startsWith("/product/");
 
   return (
     <a
@@ -14,7 +16,7 @@ export default function WhatsAppFab() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat with us on WhatsApp"
-      className="group fixed bottom-5 right-5 z-50 grid h-14 w-14 place-items-center rounded-full bg-primary text-canvas shadow-lift transition-all duration-300 hover:scale-105 hover:bg-primary-hover active:scale-95 md:bottom-8 md:right-8 md:h-16 md:w-16"
+      className={`group fixed bottom-5 right-5 z-50 grid h-14 w-14 place-items-center rounded-full bg-primary text-canvas shadow-lift transition-all duration-300 hover:scale-105 hover:bg-primary-hover active:scale-95 md:bottom-8 md:right-8 md:h-16 md:w-16 ${onProduct ? "max-md:hidden" : ""}`}
       style={{ marginBottom: "env(safe-area-inset-bottom)" }}
     >
       <span className="absolute inset-0 animate-ping rounded-full bg-primary opacity-20 [animation-duration:2.5s]" aria-hidden />

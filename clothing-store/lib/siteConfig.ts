@@ -79,7 +79,18 @@ export const siteConfig = {
     ],
   },
 
+  // Shown on product pages and the support FAQ.
+  exchangeDays: 7,
+
   sizes: ["S", "M", "L", "XL", "XXL"],
+
+  // Price filter options on the shop page (in rupees). Leave min or max out for open-ended.
+  priceBands: [
+    { max: 999 },
+    { min: 1000, max: 1999 },
+    { min: 2000, max: 2999 },
+    { min: 3000 },
+  ] as { min?: number; max?: number }[],
 
   nav: [
     { label: "Home", href: "/" },

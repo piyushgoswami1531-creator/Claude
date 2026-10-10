@@ -1,3 +1,9 @@
+export type SizeChart = {
+  unit: string;
+  columns: readonly string[];
+  rows: readonly (readonly string[])[];
+};
+
 export type Category = {
   id: string;
   parent_id: string | null;
@@ -5,6 +11,7 @@ export type Category = {
   slug: string;
   description: string | null;
   image_url: string | null;
+  size_chart?: SizeChart | null;
   sort_order: number;
 };
 

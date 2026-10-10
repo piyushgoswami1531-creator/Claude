@@ -7,12 +7,11 @@
  * Output: public/placeholders/*.svg  (safe to delete once real photos exist)
  */
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { seedCategories, seedProducts, IMAGES_PER_PRODUCT } from "../lib/data/seedData.ts";
+import { join } from "node:path";
+import { IMAGES_PER_PRODUCT, seedCategories, seedProducts, type Shape } from "../lib/data/seedData";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const outDir = join(root, "public", "placeholders");
+// Run from the project root via `npm run placeholders`.
+const outDir = join(process.cwd(), "public", "placeholders");
 mkdirSync(outDir, { recursive: true });
 
 // Greys to match the black theme in theme/palette.ts.
@@ -26,7 +25,8 @@ const FILLS = ["#E5E5E5", "#A3A3A3", "#D4D4D4", "#737373", "#BDBDBD", "#F5F5F5",
 const DETAIL = "#141414";
 
 // ─── Garment silhouettes (800 × 1000 canvas) ───
-const shapes = {
+type Draw = (fill: string, detail: string) => string;
+const shapes: Record<Shape, Draw> = {
   tee: (f, d) => `
     <path fill="${f}" d="M285 250 L345 215 Q400 262 455 215 L515 250 L640 345 L585 430 L535 395 L535 790 L265 790 L265 395 L215 430 L160 345 Z"/>
     <path fill="none" stroke="${d}" stroke-width="6" stroke-linecap="round" d="M345 215 Q400 285 455 215"/>`,
@@ -90,9 +90,8 @@ const shapes = {
     <circle cx="400" cy="328" r="14" fill="${d}"/>`,
 };
 
-const detailFor = () => DETAIL;
 
-function svg({ w = 800, h = 1000, bg, body }) {
+function svg({ w = 800, h = 1000, bg, body }: { w?: number; h?: number; bg: string[]; body: string }) {
   const [a, b] = bg;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
@@ -106,14 +105,14 @@ function svg({ w = 800, h = 1000, bg, body }) {
 </svg>`;
 }
 
-function garment(shape, fill, { scale = 1, dx = 0, dy = 0 } = {}) {
-  const d = detailFor(fill);
+function garment(shape: Shape, fill: string, { scale = 1, dx = 0, dy = 0 } = {}) {
+  const d = DETAIL;
   const t = `translate(${dx} ${dy}) translate(400 500) scale(${scale}) translate(-400 -500)`;
   return `<ellipse cx="${400 + dx}" cy="${880 + dy}" rx="${220 * scale}" ry="${22 * scale}" fill="#000000" opacity="0.55"/>
   <g transform="${t}">${shapes[shape](fill, d)}</g>`;
 }
 
-const write = (name, content) => writeFileSync(join(outDir, name), content);
+const write = (name: string, content: string) => writeFileSync(join(outDir, name), content);
 let count = 0;
 
 // Products: 3 views each (front, zoomed, alt colour)
@@ -146,11 +145,11 @@ write("hero.svg", svg({
 count++;
 
 // About strip: clothes rail
-const rail = ["shirt", "sweater", "kurta", "jacket", "tee"]
+const rail = (["shirt", "sweater", "kurta", "jacket", "tee"] as Shape[])
   .map((s, i) => {
     const x = 140 + i * 180;
     return `<path fill="none" stroke="#A3A3A3" stroke-width="5" d="M${x} 210 Q${x} 185 ${x + 15} 185 Q${x + 30} 185 ${x + 30} 200 L${x} 240"/>
-      <g transform="translate(${x - 400 * 0.42} ${235 - 190 * 0.42}) scale(0.42)">${shapes[s](FILLS[i + 1], detailFor(FILLS[i + 1]))}</g>`;
+      <g transform="translate(${x - 400 * 0.42} ${235 - 190 * 0.42}) scale(0.42)">${shapes[s](FILLS[i + 1], DETAIL)}</g>`;
   })
   .join("");
 write("about.svg", svg({
