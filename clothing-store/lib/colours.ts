@@ -12,3 +12,9 @@ const SWATCHES: Record<string, string> = {
 };
 
 export const swatchFor = (name: string) => SWATCHES[name.trim().toLowerCase()] ?? null;
+
+/** Quick-pick colours in the admin form. Any other colour can be typed in. */
+export const COMMON_COLOURS = [
+  "Black", "White", "Grey", "Charcoal", "Navy", "Blue", "Light Blue", "Beige", "Cream",
+  "Brown", "Tan", "Khaki", "Olive", "Green", "Maroon", "Red", "Pink", "Mustard", "Yellow",
+];
