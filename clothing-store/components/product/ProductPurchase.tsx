@@ -6,10 +6,12 @@ import { WhatsAppIcon } from "@/components/ui/icons";
 import SizeChart from "@/components/product/SizeChart";
 import Swatch from "@/components/product/Swatch";
 import { formatPrice } from "@/lib/format";
+import { trackOrderClick } from "@/lib/track";
 import type { SizeChart as Chart } from "@/lib/types";
 import { orderMessage, whatsappLink } from "@/lib/whatsapp";
 
 type Props = {
+  productId: string;
   name: string;
   slug: string;
   price: number; // what the customer pays
@@ -19,7 +21,7 @@ type Props = {
   sizeChart: Chart | null;
 };
 
-export default function ProductPurchase({ name, slug, price, sizes, colours, inStock, sizeChart }: Props) {
+export default function ProductPurchase({ productId, name, slug, price, sizes, colours, inStock, sizeChart }: Props) {
   // Pre-select when there's only one option, so the customer has nothing to do.
   const [size, setSize] = useState<string | null>(sizes.length === 1 ? sizes[0] : null);
   const [colour, setColour] = useState<string | null>(colours.length === 1 ? colours[0] : null);
@@ -31,13 +33,18 @@ export default function ProductPurchase({ name, slug, price, sizes, colours, inS
 
   // Ask for a size/colour before opening WhatsApp, so the owner gets a complete order.
   const onOrder = (e: React.MouseEvent) => {
-    if (!inStock) return;
+    if (!inStock) {
+      trackOrderClick(productId, size, colour); // restock questions count too
+      return;
+    }
     const need = sizes.length > 1 && !size ? "size" : colours.length > 1 && !colour ? "colour" : null;
     if (need) {
       e.preventDefault();
       setMissing(need);
       (need === "size" ? sizeRef : colourRef).current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
     }
+    trackOrderClick(productId, size, colour);
   };
 
   const label = inStock ? "Order on WhatsApp" : "Ask about restock";

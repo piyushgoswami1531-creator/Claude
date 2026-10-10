@@ -39,3 +39,9 @@ export async function getAdminCategories(supabase: Client): Promise<AdminCategor
   if (error) throw new Error(error.message);
   return data;
 }
+
+export async function getPopularProducts(supabase: Client, days = 30, limit = 10) {
+  const { data, error } = await supabase.rpc("popular_products", { days, max_rows: limit });
+  if (error) throw new Error(error.message);
+  return (data as { product_id: string; name: string; slug: string; clicks: number | string }[]).map((r) => ({ ...r, clicks: Number(r.clicks) }));
+}

@@ -10,9 +10,9 @@ import ProductTile from "@/components/admin/ProductTile";
 import { useToast } from "@/components/admin/Toast";
 import type { AdminCategory, AdminProduct } from "@/lib/adminTypes";
 
-type Props = { products: AdminProduct[]; categories: AdminCategory[]; children?: React.ReactNode };
+type Props = { products: AdminProduct[]; categories: AdminCategory[]; aiEnabled: boolean; children?: React.ReactNode };
 
-export default function AdminHome({ products, categories, children }: Props) {
+export default function AdminHome({ products, categories, aiEnabled, children }: Props) {
   const router = useRouter();
   const toast = useToast();
   const [files, setFiles] = useState<File[] | null>(null);
@@ -129,6 +129,7 @@ export default function AdminHome({ products, categories, children }: Props) {
                 <ProductForm
                   key={files?.map((f) => f.name + f.size).join("|")}
                   categories={categories}
+                  aiEnabled={aiEnabled}
                   initialFiles={files ?? []}
                   onCancel={() => setFiles(null)}
                   onSaved={(r) => {

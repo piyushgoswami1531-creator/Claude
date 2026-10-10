@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import EditProduct from "@/components/admin/EditProduct";
-import { requireAdmin } from "@/lib/admin";
+import { isAiEnabled, requireAdmin } from "@/lib/admin";
 import { getAdminCategories, getAdminProduct } from "@/lib/adminData";
 
 export const metadata: Metadata = { title: "Edit product" };
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export default async function EditPage({ params }: { params: { id: string } }) {
   const { supabase } = await requireAdmin();
@@ -16,7 +17,7 @@ export default async function EditPage({ params }: { params: { id: string } }) {
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="text-3xl">Edit product</h1>
-      <EditProduct product={product} categories={categories} />
+      <EditProduct product={product} categories={categories} aiEnabled={isAiEnabled()} />
     </div>
   );
 }

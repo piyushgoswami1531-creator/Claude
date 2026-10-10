@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { suggestProductDetails, type Suggestion } from "@/app/admin/_actions/ai";
 import { saveProduct } from "@/app/admin/_actions/products";
 import { useToast } from "@/components/admin/Toast";
 import Toggle from "@/components/admin/Toggle";
@@ -17,13 +18,14 @@ type Props = {
   categories: AdminCategory[];
   product?: AdminProduct; // editing when set
   initialFiles?: File[];
+  aiEnabled?: boolean;
   onSaved: (result: { id: string; slug: string; name: string }) => void;
   onCancel: () => void;
 };
 
 const parseMoney = (v: string) => (v.trim() === "" ? null : Number(v.replace(/[^\d.]/g, "")));
 
-export default function ProductForm({ categories, product, initialFiles, onSaved, onCancel }: Props) {
+export default function ProductForm({ categories, product, initialFiles, aiEnabled = false, onSaved, onCancel }: Props) {
   const toast = useToast();
   const photos = usePhotos(product?.images);
   const [name, setName] = useState(product?.name ?? "");
@@ -39,6 +41,7 @@ export default function ProductForm({ categories, product, initialFiles, onSaved
   const [featured, setFeatured] = useState(product?.is_featured ?? false);
   const [error, setError] = useState("");
   const [saving, startSaving] = useTransition();
+  const [ai, setAi] = useState<{ state: "idle" | "working" | "done" | "failed"; message?: string }>({ state: "idle" });
   const started = useRef(false);
 
   // Photos chosen on the admin home start compressing straight away.
@@ -57,6 +60,34 @@ export default function ProductForm({ categories, product, initialFiles, onSaved
       return { parent, options: kids.length ? kids : [parent] };
     });
   }, [categories]);
+
+  const cover = photos.photos[0]?.storage_path ?? null;
+
+  /** Ask AI for name, description, category and colour. `overwrite` replaces what's already typed. */
+  const runAi = async (overwrite: boolean) => {
+    if (!cover) return;
+    setAi({ state: "working" });
+    const leaves = groups.flatMap(({ parent, options }) =>
+      options.map((c) => ({ id: c.id, label: c.id === parent.id ? c.name : `${parent.name} › ${c.name}` })),
+    );
+    const res = await suggestProductDetails(cover, leaves);
+    if (!res.ok) {
+      setAi({ state: "failed", message: res.message });
+      return;
+    }
+    const s: Suggestion = res.data;
+    const pick = <T,>(current: T, empty: boolean, next: T) => (overwrite || empty ? next : current);
+    if (s.name) setName((v) => pick(v, !v.trim(), s.name));
+    if (s.description) setDescription((v) => pick(v, !v.trim(), s.description));
+    if (s.category_id) setCategoryId((v) => pick(v, !v, s.category_id!));
+    if (s.colours.length) setColours((v) => pick(v, v.length === 0, s.colours));
+    setAi({ state: "done" });
+  };
+
+  // New product: suggest details as soon as the first photo is uploaded.
+  useEffect(() => {
+    if (aiEnabled && !product && cover && ai.state === "idle") runAi(false);
+  }, [cover]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleIn = (list: string[], value: string) => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   const colourChoices = [...new Set([...COMMON_COLOURS, ...colours])];
@@ -171,6 +202,28 @@ export default function ProductForm({ categories, product, initialFiles, onSaved
           ))}
         </div>
       </Section>
+
+      {aiEnabled && (
+        <div className="mt-6 rounded-2xl border border-surface-strong bg-surface p-4" aria-live="polite">
+          {ai.state === "working" ? (
+            <p className="flex items-center gap-3 text-base text-ink-deep">
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-ink/30 border-t-ink-deep" aria-hidden />
+              Looking at your photo and filling in the details…
+            </p>
+          ) : ai.state === "done" ? (
+            <p className="text-base text-ink-deep">✨ Name, category, colour and description were filled in from your photo. Please check them and change anything that&apos;s wrong.</p>
+          ) : ai.state === "failed" ? (
+            <p className="text-base text-ink-deep">⚠ {ai.message}</p>
+          ) : (
+            <p className="text-base text-ink/70">{cover ? "Tap below to fill in the details from your photo." : "Details will be filled in automatically once a photo is uploaded."}</p>
+          )}
+          {cover && ai.state !== "working" && (
+            <button type="button" onClick={() => runAi(true)} className="mt-3 h-12 w-full rounded-full border border-surface-strong text-base font-medium text-ink-deep">
+              ✨ {ai.state === "idle" ? "Fill in from photo" : "Suggest again"}
+            </button>
+          )}
+        </div>
+      )}
 
       <Section title="Name">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Cotton Checked Shirt" aria-label="Product name" className={`${field} h-14`} />

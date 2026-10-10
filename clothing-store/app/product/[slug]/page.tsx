@@ -101,6 +101,7 @@ export default async function ProductPage({ params }: Props) {
 
             <div className="mt-8">
               <ProductPurchase
+                productId={product.id}
                 name={product.name}
                 slug={product.slug}
                 price={price}
