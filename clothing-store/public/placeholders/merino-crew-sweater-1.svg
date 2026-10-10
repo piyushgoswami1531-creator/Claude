@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" width="800" height="1000">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E8DDD1"/><stop offset="1" stop-color="#CDB8A2"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#F7F2EC" stop-opacity="0.8"/><stop offset="1" stop-color="#F7F2EC" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="800" height="1000" fill="url(#bg)"/>
+  <rect width="800" height="1000" fill="url(#glow)"/>
+  <ellipse cx="400" cy="880" rx="198" ry="19.8" fill="#4A3A2E" opacity="0.10"/>
+  <g transform="translate(0 0) translate(400 500) scale(0.9) translate(-400 -500)">
+    <path fill="#A88C72" d="M305 230 L350 210 Q400 245 450 210 L495 230 L600 290 L660 660 L600 675 L550 410 L550 790 L250 790 L250 410 L200 675 L140 660 L200 290 Z"/>
+    <path fill="none" stroke="#4A3A2E" stroke-width="7" d="M350 210 Q400 262 450 210"/>
+    <path stroke="#4A3A2E" stroke-width="4" d="M250 750 L550 750"/><path stroke="#4A3A2E" stroke-width="4" d="M250 765 L550 765"/>
+    <path stroke="#4A3A2E" stroke-width="4" d="M148 630 L203 643 M597 643 L652 630"/></g>
+</svg>
