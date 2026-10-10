@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 750" width="1000" height="750">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1C1C1C"/><stop offset="1" stop-color="#0E0E0E"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.07"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1000" height="750" fill="url(#bg)"/>
+  <rect width="1000" height="750" fill="url(#glow)"/>
+  <path stroke="#A3A3A3" stroke-width="10" stroke-linecap="round" d="M80 185 L920 185"/><path fill="none" stroke="#A3A3A3" stroke-width="5" d="M140 210 Q140 185 155 185 Q170 185 170 200 L140 240"/>
+      <g transform="translate(-28 155.2) scale(0.42)">
+    <path fill="#A3A3A3" d="M310 225 L365 205 L400 250 L435 205 L490 225 L600 285 L665 650 L605 668 L555 400 L555 800 L245 800 L245 400 L195 668 L135 650 L200 285 Z"/>
+    <path fill="none" stroke="#141414" stroke-width="6" stroke-linejoin="round" d="M365 205 L345 270 L400 250 L455 270 L435 205"/>
+    <path stroke="#141414" stroke-width="5" d="M400 250 L400 800"/>
+    <circle cx="415" cy="320" r="7" fill="#141414"/><circle cx="415" cy="400" r="7" fill="#141414"/><circle cx="415" cy="480" r="7" fill="#141414"/><circle cx="415" cy="560" r="7" fill="#141414"/><circle cx="415" cy="640" r="7" fill="#141414"/><circle cx="415" cy="720" r="7" fill="#141414"/>
+    <rect x="455" y="330" width="60" height="70" rx="6" fill="none" stroke="#141414" stroke-width="5"/></g><path fill="none" stroke="#A3A3A3" stroke-width="5" d="M320 210 Q320 185 335 185 Q350 185 350 200 L320 240"/>
+      <g transform="translate(152 155.2) scale(0.42)">
+    <path fill="#D4D4D4" d="M305 230 L350 210 Q400 245 450 210 L495 230 L600 290 L660 660 L600 675 L550 410 L550 790 L250 790 L250 410 L200 675 L140 660 L200 290 Z"/>
+    <path fill="none" stroke="#141414" stroke-width="7" d="M350 210 Q400 262 450 210"/>
+    <path stroke="#141414" stroke-width="4" d="M250 750 L550 750"/><path stroke="#141414" stroke-width="4" d="M250 765 L550 765"/>
+    <path stroke="#141414" stroke-width="4" d="M148 630 L203 643 M597 643 L652 630"/></g><path fill="none" stroke="#A3A3A3" stroke-width="5" d="M500 210 Q500 185 515 185 Q530 185 530 200 L500 240"/>
+      <g transform="translate(332 155.2) scale(0.42)">
+    <path fill="#737373" d="M320 195 L370 185 L400 220 L430 185 L480 195 L580 255 L640 540 L590 555 L545 360 L585 870 L215 870 L255 360 L210 555 L160 540 L220 255 Z"/>
+    <path fill="none" stroke="#141414" stroke-width="6" d="M370 185 L370 200 Q400 215 430 200 L430 185"/>
+    <path stroke="#141414" stroke-width="5" d="M400 220 L400 430"/>
+    <circle cx="400" cy="260" r="6" fill="#141414"/><circle cx="400" cy="320" r="6" fill="#141414"/><circle cx="400" cy="380" r="6" fill="#141414"/>
+    <path fill="none" stroke="#141414" stroke-width="4" d="M228 820 L572 820"/></g><path fill="none" stroke="#A3A3A3" stroke-width="5" d="M680 210 Q680 185 695 185 Q710 185 710 200 L680 240"/>
+      <g transform="translate(512 155.2) scale(0.42)">
+    <path fill="#BDBDBD" d="M300 225 L360 200 L400 240 L440 200 L500 225 L605 290 L665 665 L605 680 L555 410 L560 800 L240 800 L245 410 L195 680 L135 665 L195 290 Z"/>
+    <path fill="none" stroke="#141414" stroke-width="6" stroke-linejoin="round" d="M360 200 L330 300 L395 360 M440 200 L470 300 L405 360"/>
+    <path stroke="#141414" stroke-width="6" d="M400 360 L400 800"/>
+    <path fill="none" stroke="#141414" stroke-width="5" d="M290 520 L360 520 M440 520 L510 520"/></g><path fill="none" stroke="#A3A3A3" stroke-width="5" d="M860 210 Q860 185 875 185 Q890 185 890 200 L860 240"/>
+      <g transform="translate(692 155.2) scale(0.42)">
+    <path fill="#F5F5F5" d="M285 250 L345 215 Q400 262 455 215 L515 250 L640 345 L585 430 L535 395 L535 790 L265 790 L265 395 L215 430 L160 345 Z"/>
+    <path fill="none" stroke="#141414" stroke-width="6" stroke-linecap="round" d="M345 215 Q400 285 455 215"/></g>
+    <rect x="0" y="690" width="1000" height="60" fill="#FFFFFF" opacity="0.04"/>
+</svg>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" width="800" height="1000">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1C1C1C"/><stop offset="1" stop-color="#101010"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.07"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="800" height="1000" fill="url(#bg)"/>
+  <rect width="800" height="1000" fill="url(#glow)"/>
+  <ellipse cx="400" cy="880" rx="187" ry="18.7" fill="#000000" opacity="0.55"/>
+  <g transform="translate(0 0) translate(400 500) scale(0.85) translate(-400 -500)">
+    <path fill="#E5E5E5" d="M310 225 L365 205 L400 250 L435 205 L490 225 L600 285 L665 650 L605 668 L555 400 L555 800 L245 800 L245 400 L195 668 L135 650 L200 285 Z"/>
+    <path fill="none" stroke="#141414" stroke-width="6" stroke-linejoin="round" d="M365 205 L345 270 L400 250 L455 270 L435 205"/>
+    <path stroke="#141414" stroke-width="5" d="M400 250 L400 800"/>
+    <circle cx="415" cy="320" r="7" fill="#141414"/><circle cx="415" cy="400" r="7" fill="#141414"/><circle cx="415" cy="480" r="7" fill="#141414"/><circle cx="415" cy="560" r="7" fill="#141414"/><circle cx="415" cy="640" r="7" fill="#141414"/><circle cx="415" cy="720" r="7" fill="#141414"/>
+    <rect x="455" y="330" width="60" height="70" rx="6" fill="none" stroke="#141414" stroke-width="5"/></g>
+</svg>

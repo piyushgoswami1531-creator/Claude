@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    font-size: 16px;
+  }
+  h1, h2, h3, h4 {
+    @apply font-serif text-ink-deep;
+    letter-spacing: -0.01em;
+  }
+  ::selection {
+    @apply bg-accent text-ink-deep;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-canvas;
+  }
+}
+
+@layer components {
+  .section {
+    @apply py-14 md:py-20;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.2em] text-accent-strong;
+  }
+  /* Horizontal swipe rails on mobile */
+  .rail {
+    @apply -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:px-0;
+    /* keep snapped items aligned with the page margin */
+    scroll-padding-inline: 1.25rem;
+    scrollbar-width: none;
+  }
+  @media (min-width: 768px) {
+    .rail { scroll-padding-inline: 0; }
+  }
+  .rail::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Scroll-reveal (see components/ui/Reveal.tsx) */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal { opacity: 1; transform: none; }
+}
